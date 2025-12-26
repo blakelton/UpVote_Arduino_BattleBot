@@ -404,9 +404,70 @@ ARMING (only if currently disarmed - ALL must be true):
 - Eliminates rapid arm/disarm cycling at threshold
 
 **Next Steps**:
-1. ✅ Commit Phase 5 to git - IN PROGRESS
+1. ✅ Commit Phase 5 to git - COMPLETE
+2. ✅ Push to GitHub - COMPLETE
+3. ✅ Proceed to Phase 6: Servo Control (Self-Righting)
+
+**Git Status**: Committed and pushed to origin/master
+- Commit c86a1e7: Phase 5 Weapon Control - COMPLETE
+
+---
+
+### [2025-12-25 07:35] Phase 6 COMPLETE: Self-Righting Servo Control
+**Type**: Phase Completion
+**Status**: Implementation complete, built successfully, ready to commit
+
+**Phase 6 Summary**:
+Self-righting servo control with momentary button logic, rate limiting, endpoint clamping,
+and failsafe behavior. Simple and reliable implementation for mechanical self-righting.
+
+**Build Results**:
+- **RAM**: 396 bytes (19.3% of 2KB, 22.0% of Phase 6 budget ✅)
+- **Flash**: 9158 bytes (28.4% of 32KB)
+- **Change from Phase 5**: +2 bytes RAM, +170 bytes Flash
+
+**Files Created**:
+1. `include/servo.h` - Servo control API (25 lines)
+2. `src/servo.cpp` - Servo control implementation (75 lines)
+
+**Files Modified**:
+1. `include/config.h` - Added servo control constants (slew rate, endpoints)
+2. `src/main.cpp` - Integrated servo module (servo_init() and servo_update())
+
+**Features Implemented**:
+- ✅ Momentary button control (CH7: selfright_switch)
+- ✅ Rate limiting to prevent brownouts (5 us/tick = ~400ms neutral→endpoint)
+- ✅ Endpoint clamping (700us retract, 2300us extend)
+- ✅ Failsafe returns to neutral on link loss or kill switch
+- ✅ Always boots to neutral position (safe default)
+
+**Servo Control Logic**:
+```
+If (button pressed AND link OK AND kill switch inactive):
+  Target = SERVO_ENDPOINT_EXTEND (2300us)
+Else:
+  Target = SERVO_NEUTRAL_US (1500us)
+
+Apply slew-rate limiting (5 us/tick)
+Clamp to safe endpoints [700us, 2300us]
+```
+
+**Rate Limiting Details**:
+- Slew rate: 5 microseconds per tick (100 Hz loop)
+- Neutral to endpoint: ~160 ticks = ~1.6 seconds
+- Prevents brownouts during servo movement
+- Slower than weapon (10 units/tick) but faster than motors (25 pwm/tick)
+
+**Memory Efficiency**:
+- Only +2 bytes RAM (excellent!)
+- Simple state tracking (g_servo_previous_us)
+- No heap allocation
+- Minimal stack usage
+
+**Next Steps**:
+1. ✅ Commit Phase 6 to git - IN PROGRESS
 2. ⏳ Push to GitHub
-3. ⏳ Proceed to Phase 6: Servo Control (Self-Righting)
+3. ⏳ Proceed to Phase 7: Integration Testing & Hardening
 
 ---
 

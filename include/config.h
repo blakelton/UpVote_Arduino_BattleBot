@@ -127,6 +127,11 @@
 // Phase 5: Weapon ramping (slower than drive motors for safety)
 #define WEAPON_SLEW_RATE_MAX     10     // 10 units/tick = ~2 seconds 0-100%
 
+// Phase 6: Self-righting servo constants
+#define SERVO_SLEW_RATE_MAX      5      // 5 us/tick = ~400ms neutral→endpoint
+#define SERVO_ENDPOINT_RETRACT  700     // Retracted position (microseconds)
+#define SERVO_ENDPOINT_EXTEND  2300     // Extended position (microseconds)
+
 // ============================================================================
 // LED DIAGNOSTIC TIMING
 // ============================================================================

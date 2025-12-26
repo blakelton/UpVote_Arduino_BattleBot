@@ -3,6 +3,7 @@
 // Phase 2: CRSF Receiver Input
 // Phase 4: Holonomic Mixing
 // Phase 5: Weapon Control
+// Phase 6: Servo Control
 #include <Arduino.h>
 #include "config.h"
 #include "state.h"
@@ -12,6 +13,7 @@
 #include "input.h"
 #include "mixing.h"
 #include "weapon.h"
+#include "servo.h"
 
 // ============================================================================
 // CONTROL LOOP TIMING
@@ -42,6 +44,9 @@ void setup() {
 
   // Phase 5: Initialize weapon control
   weapon_init();
+
+  // Phase 6: Initialize servo control
+  servo_init();
 
   // Initialize loop timing
   next_loop_us = micros() + LOOP_PERIOD_US;
@@ -99,8 +104,8 @@ void loop() {
   // Phase 5: Weapon control (arming state machine + output scaling)
   weapon_update();
 
-  // Phase 6: Servo control will go here
-  // servo_update();
+  // Phase 6: Servo control (self-righting mechanism)
+  servo_update();
 
   // Update all actuator outputs
   actuators_update();
