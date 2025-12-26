@@ -4,6 +4,7 @@
 #include "config.h"
 #include "state.h"
 #include "safety.h"
+#include "utilities.h"
 
 // ============================================================================
 // PRIVATE STATE
@@ -21,31 +22,19 @@ static uint16_t g_weapon_previous_us = WEAPON_ESC_MIN_US;
 static void weapon_update_switch_debounce() {
   uint32_t now = millis();
 
-  // Debounce ARM switch
-  bool arm_raw = g_state.input.arm_switch;
+  // Debounce ARM switch using utility function
+  debounce_switch(g_state.input.arm_switch,
+                  &g_state.safety.arm_switch_debounced,
+                  &g_state.safety.arm_switch_stable_ms,
+                  SWITCH_DEBOUNCE_MS,
+                  now);
 
-  // Check if raw state matches debounced state
-  if (arm_raw != g_state.safety.arm_switch_debounced) {
-    // State changed, check if it's been stable long enough
-    if ((now - g_state.safety.arm_switch_stable_ms) >= SWITCH_DEBOUNCE_MS) {
-      // Stable for long enough, accept the change
-      g_state.safety.arm_switch_debounced = arm_raw;
-    }
-  } else {
-    // State matches, reset the timer
-    g_state.safety.arm_switch_stable_ms = now;
-  }
-
-  // Debounce KILL switch
-  bool kill_raw = g_state.input.kill_switch;
-
-  if (kill_raw != g_state.safety.kill_switch_debounced) {
-    if ((now - g_state.safety.kill_switch_stable_ms) >= SWITCH_DEBOUNCE_MS) {
-      g_state.safety.kill_switch_debounced = kill_raw;
-    }
-  } else {
-    g_state.safety.kill_switch_stable_ms = now;
-  }
+  // Debounce KILL switch using utility function
+  debounce_switch(g_state.input.kill_switch,
+                  &g_state.safety.kill_switch_debounced,
+                  &g_state.safety.kill_switch_stable_ms,
+                  SWITCH_DEBOUNCE_MS,
+                  now);
 }
 
 // Update arming state machine

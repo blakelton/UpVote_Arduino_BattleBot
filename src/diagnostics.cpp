@@ -90,7 +90,7 @@ void diagnostics_update() {
   SystemStatus status;
   if (error != ERR_NONE) {
     status = STATUS_ERROR;
-  } else if (!link_ok && false) {  // Disabled for Phase 1 (no CRSF yet)
+  } else if (!link_ok) {
     status = STATUS_FAILSAFE;
   } else if (armed) {
     status = STATUS_ARMED;

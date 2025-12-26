@@ -175,154 +175,197 @@ void input_init() {
   g_state.input.link_ok = false;
 }
 
+// ============================================================================
+// FRAME SYNCHRONIZATION STATE HANDLERS
+// ============================================================================
+
+// Process address byte in frame synchronization
+// byte: Incoming byte to check for flight controller address
+static void handle_address_byte(uint8_t byte) {
+  // Looking for flight controller address (0xC8)
+  if (byte == CRSF_ADDRESS_FLIGHT_CONTROLLER) {
+    crsf_parser.frame_buffer[0] = byte;
+    crsf_parser.bytes_received = 1;
+    crsf_parser.sync_state = WAITING_FOR_LENGTH;
+  }
+  // Ignore other bytes (sync loss, noise, etc.)
+}
+
+// Process length byte in frame synchronization
+// byte: Frame length byte (excludes address, includes type + payload + CRC)
+static void handle_length_byte(uint8_t byte) {
+  crsf_parser.frame_length = byte;
+
+  // Sanity check: length must be valid
+  if (crsf_parser.frame_length > 0 &&
+      crsf_parser.frame_length <= CRSF_PAYLOAD_SIZE_MAX) {
+    crsf_parser.frame_buffer[1] = byte;
+    crsf_parser.bytes_received = 2;
+    crsf_parser.sync_state = WAITING_FOR_TYPE;
+  } else {
+    // Invalid length → resync
+    crsf_parser.sync_state = WAITING_FOR_ADDRESS;
+  }
+}
+
+// Process type byte in frame synchronization
+// byte: Frame type byte
+static void handle_type_byte(uint8_t byte) {
+  crsf_parser.frame_buffer[2] = byte;
+  crsf_parser.bytes_received = 3;
+
+  // If payload expected, read it; otherwise go straight to CRC
+  if (crsf_parser.frame_length > 2) {
+    crsf_parser.sync_state = READING_PAYLOAD;
+  } else {
+    crsf_parser.sync_state = READING_CRC;
+  }
+}
+
+// Process payload byte in frame synchronization
+// byte: Payload data byte
+static void handle_payload_byte(uint8_t byte) {
+  // Reading payload bytes
+  crsf_parser.frame_buffer[crsf_parser.bytes_received] = byte;
+  crsf_parser.bytes_received++;
+
+  // Check if we've read: type (1) + payload + CRC position
+  // frame_length = type + payload + CRC
+  // We've read 2 bytes (addr, len) + frame_length bytes total
+  if (crsf_parser.bytes_received >= 2 + crsf_parser.frame_length - 1) {
+    crsf_parser.sync_state = READING_CRC;
+  }
+}
+
+// Process RC Channels frame payload
+// payload: Pointer to 22-byte RC channels payload
+static void process_rc_channels_frame(const uint8_t *payload) {
+  // Unpack 16 channels from 22-byte payload
+  crsf_unpack_channels(payload, crsf_parser.channels_raw);
+
+  // Phase 2.4: Normalize and apply deadband
+  // TX16S Channel mapping (from docs/initial_plan/control_mapping.md):
+  // CH1: Roll (right stick X)
+  // CH2: Pitch (right stick Y)
+  // CH3: Throttle (left stick Y) - unused for holonomic
+  // CH4: Yaw (left stick X)
+  // CH5: Arm switch (SA/SB/SC 3-pos)
+  // CH6: Kill switch (SD 2-pos)
+  // CH7: Self-right switch (SE/SF)
+  // CH8: Weapon throttle (slider/pot)
+
+  // Analog sticks (normalize + deadband)
+  float roll_raw = normalize_channel(crsf_parser.channels_raw[0]);
+  float pitch_raw = normalize_channel(crsf_parser.channels_raw[1]);
+  float yaw_raw = normalize_channel(crsf_parser.channels_raw[3]);
+  float weapon_raw = normalize_channel(crsf_parser.channels_raw[7]);
+
+  g_state.input.roll = apply_deadband(roll_raw, INPUT_DEADBAND);
+  g_state.input.pitch = apply_deadband(pitch_raw, INPUT_DEADBAND);
+  g_state.input.yaw = apply_deadband(yaw_raw, INPUT_DEADBAND);
+
+  // Weapon throttle: 0.0 to +1.0 (no deadband, no negative)
+  // Map from -1.0...+1.0 to 0.0...+1.0
+  g_state.input.weapon = (weapon_raw + 1.0f) / 2.0f;
+  if (g_state.input.weapon < 0.0f) g_state.input.weapon = 0.0f;
+  if (g_state.input.weapon > 1.0f) g_state.input.weapon = 1.0f;
+
+  // Throttle (unused for holonomic drive, but read anyway)
+  g_state.input.throttle = apply_deadband(normalize_channel(crsf_parser.channels_raw[2]), INPUT_DEADBAND);
+
+  // Switches (decode positions)
+  uint8_t arm_switch_pos = decode_3pos_switch(crsf_parser.channels_raw[4]);
+  uint8_t kill_switch_pos = decode_3pos_switch(crsf_parser.channels_raw[5]);
+  uint8_t selfright_switch_pos = decode_3pos_switch(crsf_parser.channels_raw[6]);
+
+  // Arm switch: position 2 (high) = armed
+  g_state.input.arm_switch = (arm_switch_pos == 2);
+
+  // Kill switch: position 2 (high) = kill active
+  g_state.input.kill_switch = (kill_switch_pos == 2);
+
+  // Self-right switch: position 2 (high) = trigger
+  g_state.input.selfright_switch = (selfright_switch_pos == 2);
+}
+
+// Process CRC byte and validate complete frame
+// byte: CRC byte
+static void handle_crc_byte(uint8_t byte) {
+  // Final CRC byte
+  crsf_parser.frame_buffer[crsf_parser.bytes_received] = byte;
+  crsf_parser.bytes_received++;
+
+  // Complete frame received
+  // Frame structure in buffer:
+  // [0] = address (0xC8)
+  // [1] = length
+  // [2] = type
+  // [3..N-1] = payload
+  // [N] = CRC
+
+  // Phase 2.2: Validate CRC-8-DVB-S2
+  // CRC is calculated over type + payload (excludes address and length)
+  // CRC start: frame_buffer[2] (type byte)
+  // CRC length: frame_length - 1 (excludes CRC byte itself)
+  uint8_t crc_start_index = 2;
+  uint8_t crc_length = crsf_parser.frame_length - 1;
+  uint8_t calculated_crc = crsf_crc8(&crsf_parser.frame_buffer[crc_start_index], crc_length);
+  uint8_t received_crc = crsf_parser.frame_buffer[crsf_parser.bytes_received - 1];
+
+  if (calculated_crc == received_crc) {
+    // CRC valid - process frame based on type
+    uint8_t frame_type = crsf_parser.frame_buffer[2];
+
+    if (frame_type == CRSF_FRAMETYPE_RC_CHANNELS) {
+      // Phase 2.3: Parse RC Channels packet
+      // Payload starts at frame_buffer[3]
+      // Payload is 22 bytes for RC Channels
+      // Validate payload length: frame_length = type (1) + payload (22) + CRC (1) = 24
+      uint8_t expected_frame_length = 1 + CRSF_RC_CHANNELS_PAYLOAD_SIZE + 1;
+
+      if (crsf_parser.frame_length == expected_frame_length) {
+        const uint8_t *payload = &crsf_parser.frame_buffer[3];
+        process_rc_channels_frame(payload);
+      }
+      // Invalid payload length - silently ignore (malformed packet)
+    }
+
+    // Update link status (got valid packet)
+    g_state.input.last_packet_ms = millis();
+    g_state.input.link_ok = true;
+  } else {
+    // CRC mismatch - reject frame
+    // Treat as link issue (could be noise, interference, etc.)
+    safety_set_error(ERR_CRSF_CRC);
+  }
+
+  // Reset state machine for next frame
+  crsf_parser.sync_state = WAITING_FOR_ADDRESS;
+  crsf_parser.bytes_received = 0;
+}
+
 // Frame synchronization state machine
 // Processes one byte at a time, assembles complete CRSF frames
 static void crsf_process_byte(uint8_t byte) {
   switch (crsf_parser.sync_state) {
     case WAITING_FOR_ADDRESS:
-      // Looking for flight controller address (0xC8)
-      if (byte == CRSF_ADDRESS_FLIGHT_CONTROLLER) {
-        crsf_parser.frame_buffer[0] = byte;
-        crsf_parser.bytes_received = 1;
-        crsf_parser.sync_state = WAITING_FOR_LENGTH;
-      }
-      // Ignore other bytes (sync loss, noise, etc.)
+      handle_address_byte(byte);
       break;
 
     case WAITING_FOR_LENGTH:
-      // Frame length byte (excludes address, includes type + payload + CRC)
-      crsf_parser.frame_length = byte;
-
-      // Sanity check: length must be valid
-      if (crsf_parser.frame_length > 0 &&
-          crsf_parser.frame_length <= CRSF_PAYLOAD_SIZE_MAX) {
-        crsf_parser.frame_buffer[1] = byte;
-        crsf_parser.bytes_received = 2;
-        crsf_parser.sync_state = WAITING_FOR_TYPE;
-      } else {
-        // Invalid length → resync
-        crsf_parser.sync_state = WAITING_FOR_ADDRESS;
-      }
+      handle_length_byte(byte);
       break;
 
     case WAITING_FOR_TYPE:
-      // Frame type byte
-      crsf_parser.frame_buffer[2] = byte;
-      crsf_parser.bytes_received = 3;
-
-      // If payload expected, read it; otherwise go straight to CRC
-      if (crsf_parser.frame_length > 2) {
-        crsf_parser.sync_state = READING_PAYLOAD;
-      } else {
-        crsf_parser.sync_state = READING_CRC;
-      }
+      handle_type_byte(byte);
       break;
 
     case READING_PAYLOAD:
-      // Reading payload bytes
-      crsf_parser.frame_buffer[crsf_parser.bytes_received] = byte;
-      crsf_parser.bytes_received++;
-
-      // Check if we've read: type (1) + payload + CRC position
-      // frame_length = type + payload + CRC
-      // We've read 2 bytes (addr, len) + frame_length bytes total
-      if (crsf_parser.bytes_received >= 2 + crsf_parser.frame_length - 1) {
-        crsf_parser.sync_state = READING_CRC;
-      }
+      handle_payload_byte(byte);
       break;
 
     case READING_CRC:
-      // Final CRC byte
-      crsf_parser.frame_buffer[crsf_parser.bytes_received] = byte;
-      crsf_parser.bytes_received++;
-
-      // Complete frame received
-      // Frame structure in buffer:
-      // [0] = address (0xC8)
-      // [1] = length
-      // [2] = type
-      // [3..N-1] = payload
-      // [N] = CRC
-
-      // Phase 2.2: Validate CRC-8-DVB-S2
-      // CRC is calculated over type + payload (excludes address and length)
-      // CRC start: frame_buffer[2] (type byte)
-      // CRC length: frame_length - 1 (excludes CRC byte itself)
-      uint8_t crc_start_index = 2;
-      uint8_t crc_length = crsf_parser.frame_length - 1;
-      uint8_t calculated_crc = crsf_crc8(&crsf_parser.frame_buffer[crc_start_index], crc_length);
-      uint8_t received_crc = crsf_parser.frame_buffer[crsf_parser.bytes_received - 1];
-
-      if (calculated_crc == received_crc) {
-        // CRC valid - process frame based on type
-        uint8_t frame_type = crsf_parser.frame_buffer[2];
-
-        if (frame_type == CRSF_FRAMETYPE_RC_CHANNELS) {
-          // Phase 2.3: Parse RC Channels packet
-          // Payload starts at frame_buffer[3]
-          // Payload is 22 bytes for RC Channels
-          const uint8_t *payload = &crsf_parser.frame_buffer[3];
-
-          // Unpack 16 channels from 22-byte payload
-          crsf_unpack_channels(payload, crsf_parser.channels_raw);
-
-          // Phase 2.4: Normalize and apply deadband
-          // TX16S Channel mapping (from docs/initial_plan/control_mapping.md):
-          // CH1: Roll (right stick X)
-          // CH2: Pitch (right stick Y)
-          // CH3: Throttle (left stick Y) - unused for holonomic
-          // CH4: Yaw (left stick X)
-          // CH5: Arm switch (SA/SB/SC 3-pos)
-          // CH6: Kill switch (SD 2-pos)
-          // CH7: Self-right switch (SE/SF)
-          // CH8: Weapon throttle (slider/pot)
-
-          // Analog sticks (normalize + deadband)
-          float roll_raw = normalize_channel(crsf_parser.channels_raw[0]);
-          float pitch_raw = normalize_channel(crsf_parser.channels_raw[1]);
-          float yaw_raw = normalize_channel(crsf_parser.channels_raw[3]);
-          float weapon_raw = normalize_channel(crsf_parser.channels_raw[7]);
-
-          g_state.input.roll = apply_deadband(roll_raw, INPUT_DEADBAND);
-          g_state.input.pitch = apply_deadband(pitch_raw, INPUT_DEADBAND);
-          g_state.input.yaw = apply_deadband(yaw_raw, INPUT_DEADBAND);
-
-          // Weapon throttle: 0.0 to +1.0 (no deadband, no negative)
-          // Map from -1.0...+1.0 to 0.0...+1.0
-          g_state.input.weapon = (weapon_raw + 1.0f) / 2.0f;
-          if (g_state.input.weapon < 0.0f) g_state.input.weapon = 0.0f;
-          if (g_state.input.weapon > 1.0f) g_state.input.weapon = 1.0f;
-
-          // Throttle (unused for holonomic drive, but read anyway)
-          g_state.input.throttle = apply_deadband(normalize_channel(crsf_parser.channels_raw[2]), INPUT_DEADBAND);
-
-          // Switches (decode positions)
-          uint8_t arm_switch_pos = decode_3pos_switch(crsf_parser.channels_raw[4]);
-          uint8_t kill_switch_pos = decode_3pos_switch(crsf_parser.channels_raw[5]);
-          uint8_t selfright_switch_pos = decode_3pos_switch(crsf_parser.channels_raw[6]);
-
-          // Arm switch: position 2 (high) = armed
-          g_state.input.arm_switch = (arm_switch_pos == 2);
-
-          // Kill switch: position 2 (high) = kill active
-          g_state.input.kill_switch = (kill_switch_pos == 2);
-
-          // Self-right switch: position 2 (high) = trigger
-          g_state.input.selfright_switch = (selfright_switch_pos == 2);
-        }
-
-        // Update link status (got valid packet)
-        g_state.input.last_packet_ms = millis();
-        g_state.input.link_ok = true;
-      } else {
-        // CRC mismatch - reject frame
-        // Treat as link issue (could be noise, interference, etc.)
-        safety_set_error(ERR_CRSF_CRC);
-      }
-
-      // Reset state machine for next frame
-      crsf_parser.sync_state = WAITING_FOR_ADDRESS;
-      crsf_parser.bytes_received = 0;
+      handle_crc_byte(byte);
       break;
   }
 }

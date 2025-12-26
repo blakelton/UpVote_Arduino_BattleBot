@@ -18,7 +18,12 @@
       "Bash(where.exe:*)",
       "Bash(ls:*)",
       "Bash(git rm:*)",
-      "Bash(~/.platformio/penv/Scripts/platformio.exe run)"
+      "Bash(~/.platformio/penv/Scripts/platformio.exe run)",
+      "Skill(ai-eval)",
+      "Skill(ai-eval:*)",
+      "Bash(find:*)",
+      "Bash(wc:*)",
+      "Bash(where pio:*)"
     ]
   }
 }
