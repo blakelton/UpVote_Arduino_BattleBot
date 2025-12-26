@@ -40,7 +40,9 @@ void loop() {
   uint32_t now_us = micros();
   if (now_us < next_loop_us) {
     // Still have time before next iteration
-    // Could add idle processing here if needed
+    // QA fix H3: Add power management here in future
+    // For now, early return is acceptable for battlebot (always-on requirement)
+    // TODO Phase 2+: Consider SLEEP_MODE_IDLE for power savings if needed
     return;
   }
 
@@ -48,6 +50,9 @@ void loop() {
   g_state.loop_start_us = now_us;
 
   // Check for loop overrun (took longer than 10ms)
+  // QA fix M5: Detection only - system continues with delayed timing
+  // Recovery: Next loop will try to catch up (acceptable for Phase 1)
+  // Future phases may add reduced functionality mode if needed
   if (now_us > next_loop_us + LOOP_PERIOD_US) {
     safety_set_error(ERR_LOOP_OVERRUN);
   }

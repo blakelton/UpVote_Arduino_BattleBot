@@ -22,6 +22,12 @@ bool safety_is_safe() {
   // Phase 2+ will add link health check
   // Phase 5+ will add arming logic
 
+  // Validate state integrity (QA fix: H2)
+  if (g_state.safety.error > ERR_CRSF_CRC) {
+    // Invalid error code detected
+    return false;
+  }
+
   return (g_state.safety.error == ERR_NONE);
 }
 

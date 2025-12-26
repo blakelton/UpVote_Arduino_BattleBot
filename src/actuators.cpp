@@ -8,6 +8,10 @@
 // PRIVATE HELPER FUNCTIONS
 // ============================================================================
 
+// Shift register state (global to avoid ISR safety issues)
+// Tracks current motor direction bits sent to 74HC595
+static uint8_t g_shift_reg_state = 0x00;
+
 // Write 8 bits to the 74HC595 shift register (motor directions)
 static void shift_register_write(uint8_t data) {
   digitalWrite(PIN_SR_LATCH, LOW);  // Prepare to shift data
@@ -19,7 +23,8 @@ static void shift_register_write(uint8_t data) {
 // motor: 0=RL, 1=RR, 2=FL, 3=FR
 // forward: true=forward, false=reverse
 static void set_motor_direction(uint8_t motor, bool forward) {
-  static uint8_t shift_reg_state = 0x00; // Current shift register state
+  // Bounds check motor index (QA fix: M3)
+  if (motor > 3) return;
 
   // Calculate bit positions for this motor
   uint8_t bit_a = motor * 2;     // Direction A bit
@@ -27,14 +32,14 @@ static void set_motor_direction(uint8_t motor, bool forward) {
 
   // Set direction bits
   if (forward) {
-    shift_reg_state |= (1 << bit_a);   // A = HIGH
-    shift_reg_state &= ~(1 << bit_b);  // B = LOW
+    g_shift_reg_state |= (1 << bit_a);   // A = HIGH
+    g_shift_reg_state &= ~(1 << bit_b);  // B = LOW
   } else {
-    shift_reg_state &= ~(1 << bit_a);  // A = LOW
-    shift_reg_state |= (1 << bit_b);   // B = HIGH
+    g_shift_reg_state &= ~(1 << bit_a);  // A = LOW
+    g_shift_reg_state |= (1 << bit_b);   // B = HIGH
   }
 
-  shift_register_write(shift_reg_state);
+  shift_register_write(g_shift_reg_state);
 }
 
 // ============================================================================
@@ -91,11 +96,11 @@ void actuators_update() {
   set_motor_direction(0, rl >= 0);  // RL motor (M1)
   set_motor_direction(1, rr >= 0);  // RR motor (M2)
 
-  // --- Update Motor PWM (absolute value) ---
-  analogWrite(PIN_MOTOR_FL_PWM, abs(fl));
-  analogWrite(PIN_MOTOR_FR_PWM, abs(fr));
-  analogWrite(PIN_MOTOR_RL_PWM, abs(rl));
-  analogWrite(PIN_MOTOR_RR_PWM, abs(rr));
+  // --- Update Motor PWM (absolute value with bounds check - QA fix: H1) ---
+  analogWrite(PIN_MOTOR_FL_PWM, (uint8_t)constrain(abs(fl), MOTOR_PWM_MIN, MOTOR_PWM_MAX));
+  analogWrite(PIN_MOTOR_FR_PWM, (uint8_t)constrain(abs(fr), MOTOR_PWM_MIN, MOTOR_PWM_MAX));
+  analogWrite(PIN_MOTOR_RL_PWM, (uint8_t)constrain(abs(rl), MOTOR_PWM_MIN, MOTOR_PWM_MAX));
+  analogWrite(PIN_MOTOR_RR_PWM, (uint8_t)constrain(abs(rr), MOTOR_PWM_MIN, MOTOR_PWM_MAX));
 
   // --- Update Weapon ESC (Phase 5 will improve this) ---
   // For Phase 1, just keep it at safe minimum (0 PWM = stopped)
