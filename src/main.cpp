@@ -1,11 +1,13 @@
 // main.cpp - UpVote Battlebot Main Control Loop
 // Phase 1: Safety Scaffolding
+// Phase 2: CRSF Receiver Input
 #include <Arduino.h>
 #include "config.h"
 #include "state.h"
 #include "safety.h"
 #include "actuators.h"
 #include "diagnostics.h"
+#include "input.h"
 
 // ============================================================================
 // CONTROL LOOP TIMING
@@ -27,6 +29,9 @@ void setup() {
 
   // Initialize diagnostics (LED patterns)
   diagnostics_init();
+
+  // Phase 2: Initialize CRSF receiver input
+  input_init();
 
   // Initialize loop timing
   next_loop_us = micros() + LOOP_PERIOD_US;
@@ -67,8 +72,8 @@ void loop() {
   // Reset hardware watchdog timer (must be called every loop)
   safety_watchdog_reset();
 
-  // Phase 2: Input processing will go here
-  // input_update();
+  // Phase 2: Process CRSF receiver input
+  input_update();
 
   // Phase 4: Drive mixing will go here
   // mixer_update();

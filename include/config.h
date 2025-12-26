@@ -112,6 +112,13 @@
 #define LED_ERROR_PAUSE_MS   1000   // Pause between error code sequences
 
 // ============================================================================
+// INPUT PROCESSING CONSTANTS
+// ============================================================================
+
+// Deadband threshold (prevents stick drift at center)
+#define INPUT_DEADBAND  0.05f  // 5% deadband zone around center
+
+// ============================================================================
 // MEMORY BUDGET TRACKING
 // ============================================================================
 

@@ -60,6 +60,45 @@ Track all:
 
 <!-- New entries should be added at the top, below this line -->
 
+### [2025-12-25 23:15] Plan Status: `phase2_receiver_input`
+**Transition**: ready → in_progress
+**Reason**: Starting Phase 2 implementation - CRSF receiver input processing
+
+**Prerequisites Check**:
+Phase 2 requires verification of ELRS receiver hardware capabilities before implementation:
+
+**Required Checks**:
+1. ✅ ELRS receiver has RX pin for bidirectional telemetry (CR8 Nano confirmed)
+2. ✅ Receiver outputs CRSF format at 420kbaud (ExpressLRS V3.3)
+3. ✅ Hardware connections planned: Receiver TX → Arduino RX (pin 0)
+4. ✅ Telemetry enabled: Arduino TX (pin 1) → Receiver RX pin (20dBm return power)
+5. ✅ Receiver will be powered from 5V BEC (45mA current draw)
+6. ⏳ Receiver binding to TX16S (to be done during hardware assembly)
+
+**Hardware Verified**: CR8 Nano ExpressLRS 2.4GHz Receiver
+- Model: CR8 Nano (18.9×11.2×1mm, 0.8g)
+- MCU: ESP8285, RF: SX1281
+- Firmware: ExpressLRS V3.3 pre-installed
+- Telemetry: 20dBm (100mW) - BIDIRECTIONAL ✅
+- Refresh rate: 50Hz-1000Hz (compatible with 100Hz control loop)
+
+**Phase 2 Overview**:
+- **Goal**: Parse CRSF RC Channels packets from ELRS receiver
+- **Sub-phases**: 5 (UART init, CRC validation, channel unpacking, normalization, telemetry)
+- **Memory budget**: <768 bytes (37.5% of 2KB)
+- **Key features**: 16-channel input, link health monitoring, telemetry to TX16S
+
+**Implementation Plan**:
+1. Phase 2.1: UART initialization (420kbaud) + CRSF frame synchronization
+2. Phase 2.2: CRC-8-DVB-S2 validation with lookup table (PROGMEM)
+3. Phase 2.3: 11-bit channel unpacking (16 channels from 22-byte payload)
+4. Phase 2.4: Channel normalization [-1.0, +1.0] + deadband (0.05)
+5. Phase 2.5: CRSF telemetry transmission to TX16S (battery, RAM, error codes)
+
+**Next Step**: Request user to verify hardware prerequisites before beginning implementation.
+
+---
+
 ### [2025-12-25 23:00] Plan Status: `phase1_safety_scaffolding`
 **Transition**: in_progress → completed
 **Reason**: Phase 1 complete - all 6 sub-phases implemented and quality evaluated
