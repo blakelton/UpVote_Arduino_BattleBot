@@ -160,10 +160,10 @@ Each module reads from and writes to a central `RuntimeState` structure, prevent
 **CRITICAL**: Address these before starting Phase 1 implementation:
 
 ### Hardware Verification Required
-- [ ] **L293D Shield Variant**: Identify exact model (Adafruit Motor Shield v1/v2, DFRobot, generic)
-- [ ] **Pin Mapping**: Document actual pins used by shield (PWM pins, direction pins)
-- [ ] **Timer Allocation**: Verify timer assignments don't conflict (motors vs servo vs ESC)
-- [ ] **Create**: `docs/hardware/pin_assignments.md` with verified pinout
+- [x] **L293D Shield Variant**: Generic L293D Motor Shield (74HC595 + Dual L293D) ✅
+- [x] **Pin Mapping**: Motors use pins 5,6,9,10 (PWM) + shift register (pins 4,7,8,12) ✅
+- [x] **Timer Allocation**: Conflicts resolved - weapon ESC→pin 3, servo→pin 11 (Timer2) ✅
+- [x] **Create**: `docs/hardware/pin_assignments.md` with verified pinout ✅
 
 ### Design Decisions Required
 - [x] **CRSF Implementation**: Custom minimal parser (decision made per gap analysis)
@@ -172,13 +172,12 @@ Each module reads from and writes to a central `RuntimeState` structure, prevent
 - [ ] **Debug Strategy**: LED patterns for production, Serial only for bench debug
 
 ### Documentation to Create
-- [ ] `docs/hardware/pin_assignments.md` - Verified L293D shield pinout
-- [ ] `docs/hardware/esc_calibration.md` - HW30A setup procedure
-- [ ] `docs/safety/safety_requirements.md` - Formal safety requirements with test traceability
-- [ ] `docs/testing/bench_tests/` - Step-by-step test procedures for each phase
+- [x] `docs/hardware/pin_assignments.md` - Verified L293D shield pinout ✅
+- [ ] `docs/hardware/esc_calibration.md` - HW30A setup procedure (defer to Phase 5)
+- [ ] `docs/safety/safety_requirements.md` - Formal safety requirements with test traceability (defer to Phase 7)
+- [ ] `docs/testing/bench_tests/` - Step-by-step test procedures for each phase (created per-phase)
 
-**Estimated time**: 2-4 hours of research and documentation
-**Status**: Must complete before Phase 1 coding begins
+**Status**: ✅ HARDWARE VERIFICATION COMPLETE - Ready to begin Phase 1 coding!
 
 ---
 
