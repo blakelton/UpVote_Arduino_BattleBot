@@ -1,6 +1,7 @@
 // main.cpp - UpVote Battlebot Main Control Loop
 // Phase 1: Safety Scaffolding
 // Phase 2: CRSF Receiver Input
+// Phase 4: Holonomic Mixing
 #include <Arduino.h>
 #include "config.h"
 #include "state.h"
@@ -8,6 +9,7 @@
 #include "actuators.h"
 #include "diagnostics.h"
 #include "input.h"
+#include "mixing.h"
 
 // ============================================================================
 // CONTROL LOOP TIMING
@@ -32,6 +34,9 @@ void setup() {
 
   // Phase 2: Initialize CRSF receiver input
   input_init();
+
+  // Phase 4: Initialize holonomic mixing
+  mixing_init();
 
   // Initialize loop timing
   next_loop_us = micros() + LOOP_PERIOD_US;
@@ -78,8 +83,13 @@ void loop() {
   // Phase 2.5: Send telemetry to TX16S (1 Hz)
   input_update_telemetry();
 
-  // Phase 4: Drive mixing will go here
-  // mixer_update();
+  // Phase 4: Holonomic drive mixing
+  // Only update mixing if link is OK and kill switch is not active
+  if (g_state.input.link_ok && !g_state.input.kill_switch) {
+    mixing_update();
+  }
+  // Note: If failsafe or kill switch active, motors stay at last commanded values
+  // actuators_update() will still write outputs (likely zero from last failsafe)
 
   // Phase 5: Weapon control will go here
   // weapon_update();

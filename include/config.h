@@ -150,6 +150,26 @@
 // #define BATTERY_SCALE_FACTOR    0.0049  // Calibration factor (ADC to volts)
 
 // ============================================================================
+// HOLONOMIC MIXING CONSTANTS (Phase 4)
+// ============================================================================
+
+// Drive mode parameters
+// Beginner mode: 50% max duty, gentle control
+#define BEGINNER_MAX_DUTY      127  // 50% of 255
+#define BEGINNER_EXPO          0.3f // Light exponential curve
+
+// Normal mode: 80% max duty (same as thermal clamp), balanced control
+#define NORMAL_MAX_DUTY        204  // 80% of 255 (same as MOTOR_DUTY_CLAMP_MAX)
+#define NORMAL_EXPO            0.2f // Moderate exponential curve
+
+// Aggressive mode: 100% max duty (still respects thermal clamp), responsive control
+#define AGGRESSIVE_MAX_DUTY    255  // 100% of 255
+#define AGGRESSIVE_EXPO        0.1f // Minimal exponential curve
+
+// Axis scaling (reduce rotation sensitivity relative to translation)
+#define ROTATION_SCALE         0.7f  // 70% rotation sensitivity
+
+// ============================================================================
 // MEMORY BUDGET TRACKING
 // ============================================================================
 
