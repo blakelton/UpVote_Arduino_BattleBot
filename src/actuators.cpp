@@ -43,8 +43,65 @@ static void set_motor_direction(uint8_t motor, bool forward) {
 }
 
 // ============================================================================
+// PHASE 3: MOTOR CONTROL WITH SLEW-RATE LIMITING
+// ============================================================================
+
+// Previous motor PWM values (for slew-rate limiting)
+static int16_t g_motor_previous[4] = {0, 0, 0, 0};  // [RL, RR, FL, FR]
+
+// Apply slew-rate limiting to a motor command
+// current: Current motor value
+// target: Target motor value
+// Returns: Slewed value (gradually approaches target)
+static int16_t apply_slew_rate(int16_t current, int16_t target) {
+  int16_t delta = target - current;
+
+  if (delta > MOTOR_SLEW_RATE_MAX) {
+    return current + MOTOR_SLEW_RATE_MAX;
+  } else if (delta < -MOTOR_SLEW_RATE_MAX) {
+    return current - MOTOR_SLEW_RATE_MAX;
+  } else {
+    return target;
+  }
+}
+
+// Motor polarity inversion lookup table
+static const bool g_motor_inverted[4] = {
+  MOTOR_RL_INVERTED,  // Motor 0: Rear-Left
+  MOTOR_RR_INVERTED,  // Motor 1: Rear-Right
+  MOTOR_FL_INVERTED,  // Motor 2: Front-Left
+  MOTOR_FR_INVERTED   // Motor 3: Front-Right
+};
+
+// ============================================================================
 // PUBLIC INTERFACE
 // ============================================================================
+
+void actuators_set_motor(uint8_t motor_index, int16_t command) {
+  // Bounds check motor index
+  if (motor_index > 3) return;
+
+  // Step 1: Apply polarity inversion if configured
+  int16_t adjusted_command = command;
+  if (g_motor_inverted[motor_index]) {
+    adjusted_command = -command;
+  }
+
+  // Step 2: Apply global duty cycle clamp (thermal protection)
+  adjusted_command = constrain(adjusted_command, -MOTOR_DUTY_CLAMP_MAX, MOTOR_DUTY_CLAMP_MAX);
+
+  // Step 3: Apply slew-rate limiting (prevents current spikes)
+  int16_t slewed_command = apply_slew_rate(g_motor_previous[motor_index], adjusted_command);
+  g_motor_previous[motor_index] = slewed_command;
+
+  // Step 4: Write to appropriate motor in g_state.output
+  switch (motor_index) {
+    case 0: g_state.output.motor_rl_pwm = slewed_command; break;  // Rear-Left
+    case 1: g_state.output.motor_rr_pwm = slewed_command; break;  // Rear-Right
+    case 2: g_state.output.motor_fl_pwm = slewed_command; break;  // Front-Left
+    case 3: g_state.output.motor_fr_pwm = slewed_command; break;  // Front-Right
+  }
+}
 
 void actuators_init() {
   // --- Shift Register Pins ---

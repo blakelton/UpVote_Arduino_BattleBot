@@ -68,6 +68,24 @@
 #define SR_M4_A  6  // Front-Right motor, direction A
 #define SR_M4_B  7  // Front-Right motor, direction B
 
+// Phase 3: Slew-rate limiting (Phase 3)
+// Maximum PWM change per control loop iteration (100 Hz = 10ms)
+// 25 units/tick = 0-255 in ~100ms (prevents current spikes)
+#define MOTOR_SLEW_RATE_MAX  25
+
+// Phase 3: Global duty cycle clamp (thermal protection)
+// Limits maximum PWM duty cycle for all motors
+// 255 = 100% duty, 204 = 80% duty (recommended for thermal safety)
+#define MOTOR_DUTY_CLAMP_MAX  204  // 80% max duty cycle
+
+// Phase 3: Motor polarity inversion flags
+// Set to true to invert a motor's direction (corrects wiring polarity)
+// Adjust these during hardware testing if motors spin backwards
+#define MOTOR_FL_INVERTED  false
+#define MOTOR_FR_INVERTED  false
+#define MOTOR_RL_INVERTED  false
+#define MOTOR_RR_INVERTED  false
+
 // ============================================================================
 // WEAPON ESC CONSTANTS
 // ============================================================================
