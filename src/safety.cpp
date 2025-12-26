@@ -3,17 +3,31 @@
 #include "safety.h"
 #include "config.h"
 #include "state.h"
+#include <avr/wdt.h>
 
 // ============================================================================
 // SAFETY MODULE IMPLEMENTATION
 // ============================================================================
 
 void safety_init() {
+  // Check if reset was caused by watchdog
+  // MCUSR (MCU Status Register) preserves reset cause
+  uint8_t mcusr = MCUSR;
+  MCUSR = 0;  // Clear reset flags
+
   // Ensure system starts in safe state
   g_state.safety.arm_state = DISARMED;
   g_state.safety.error = ERR_NONE;
 
-  // Phase 1.6 will add watchdog initialization here
+  // If watchdog caused the reset, record it
+  if (mcusr & (1 << WDRF)) {
+    safety_set_error(ERR_WATCHDOG_RESET);
+  }
+
+  // Enable hardware watchdog timer
+  // WDTO_500MS = 500ms timeout (loop runs at 10ms, so 50x safety margin)
+  // If we miss 50 consecutive loop iterations, watchdog will reset the system
+  wdt_enable(WDTO_500MS);
 }
 
 bool safety_is_safe() {
@@ -36,4 +50,10 @@ void safety_set_error(SystemError error) {
   if (g_state.safety.error == ERR_NONE) {
     g_state.safety.error = error;
   }
+}
+
+void safety_watchdog_reset() {
+  // Reset hardware watchdog timer
+  // Must be called at least every 500ms (we call it every 10ms)
+  wdt_reset();
 }

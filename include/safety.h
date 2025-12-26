@@ -45,4 +45,8 @@ inline void safety_clear_error() {
   g_state.safety.error = ERR_NONE;
 }
 
+// Reset watchdog timer (call this every control loop iteration)
+// Must be called at least every 500ms to prevent system reset
+void safety_watchdog_reset();
+
 #endif // SAFETY_H

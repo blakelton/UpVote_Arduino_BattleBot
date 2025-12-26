@@ -64,6 +64,9 @@ void loop() {
   // CONTROL LOOP BODY (runs at 100 Hz)
   // ========================================================================
 
+  // Reset hardware watchdog timer (must be called every loop)
+  safety_watchdog_reset();
+
   // Phase 2: Input processing will go here
   // input_update();
 
