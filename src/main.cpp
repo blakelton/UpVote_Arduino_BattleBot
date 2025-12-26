@@ -25,8 +25,8 @@ void setup() {
   // Initialize safety system
   safety_init();
 
-  // Phase 1.5: Diagnostics initialization will go here
-  // diagnostics_init();
+  // Initialize diagnostics (LED patterns)
+  diagnostics_init();
 
   // Initialize loop timing
   next_loop_us = micros() + LOOP_PERIOD_US;
@@ -80,7 +80,7 @@ void loop() {
   actuators_update();
 
   // Phase 1.5: Update LED diagnostics
-  // diagnostics_update();
+  diagnostics_update();
 
   // ========================================================================
   // END OF CONTROL LOOP
