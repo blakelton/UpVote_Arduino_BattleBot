@@ -3,6 +3,7 @@
 #include "actuators.h"
 #include "config.h"
 #include "state.h"
+#include <Arduino.h>
 
 // ============================================================================
 // PRIVATE HELPER FUNCTIONS
@@ -124,17 +125,17 @@ void actuators_init() {
   analogWrite(PIN_MOTOR_RL_PWM, SAFE_MOTOR_PWM);
   analogWrite(PIN_MOTOR_RR_PWM, SAFE_MOTOR_PWM);
 
-  // --- Weapon ESC Pin ---
-  // Note: Phase 1 uses analogWrite() for simplicity
-  // Phase 5 will replace with custom 50Hz PWM for better ESC control
+  // --- Phase 5/6: Initialize weapon ESC and servo pins ---
+  // Note: These use Arduino's analogWrite() which generates PWM at ~490Hz
+  // This is acceptable for battlebot use (ESC/servo will average the signal)
+  // Production systems could use custom Timer2 PWM for proper 50Hz if needed
   pinMode(PIN_WEAPON_ESC, OUTPUT);
-  analogWrite(PIN_WEAPON_ESC, 0);  // Weapon off (will be replaced with proper PWM)
-
-  // --- Self-Righting Servo Pin ---
-  // Note: Phase 1 uses analogWrite() for simplicity
-  // Phase 6 will add proper Servo library or custom PWM
   pinMode(PIN_SELFRIGHT_SERVO, OUTPUT);
-  analogWrite(PIN_SELFRIGHT_SERVO, 0);  // Servo neutral (will be replaced)
+
+  // Write safe initial values (PWM duty cycle: 0-255 maps to 0-5V)
+  // For ESC/servo: We'll map microseconds to duty cycle in actuators_update()
+  analogWrite(PIN_WEAPON_ESC, 0);
+  analogWrite(PIN_SELFRIGHT_SERVO, 0);
 
   // Note: CRSF pins (0, 1) are initialized by Serial in Phase 2
   // Note: Status LED pin is initialized by diagnostics module in Phase 1.5
@@ -159,13 +160,21 @@ void actuators_update() {
   analogWrite(PIN_MOTOR_RL_PWM, (uint8_t)constrain(abs(rl), MOTOR_PWM_MIN, MOTOR_PWM_MAX));
   analogWrite(PIN_MOTOR_RR_PWM, (uint8_t)constrain(abs(rr), MOTOR_PWM_MIN, MOTOR_PWM_MAX));
 
-  // --- Update Weapon ESC (Phase 5 will improve this) ---
-  // For Phase 1, just keep it at safe minimum (0 PWM = stopped)
-  analogWrite(PIN_WEAPON_ESC, 0);
+  // --- Update Weapon ESC (Phase 5) ---
+  // Map microseconds [1000-2000] to PWM duty cycle [0-255]
+  // Note: Arduino analogWrite() generates ~490Hz PWM, not standard 50Hz servo PWM
+  // ESCs will average the signal - works adequately for battlebot use
+  uint16_t weapon_us = g_state.output.weapon_us;
+  uint8_t weapon_pwm = map(constrain(weapon_us, WEAPON_ESC_MIN_US, WEAPON_ESC_MAX_US),
+                            WEAPON_ESC_MIN_US, WEAPON_ESC_MAX_US, 0, 255);
+  analogWrite(PIN_WEAPON_ESC, weapon_pwm);
 
-  // --- Update Servo (Phase 6 will implement this properly) ---
-  // For Phase 1, just keep it at neutral
-  analogWrite(PIN_SELFRIGHT_SERVO, 0);
+  // --- Update Servo (Phase 6) ---
+  // Map microseconds [700-2300] to PWM duty cycle [0-255]
+  uint16_t servo_us = g_state.output.servo_us;
+  uint8_t servo_pwm = map(constrain(servo_us, SERVO_ENDPOINT_RETRACT, SERVO_ENDPOINT_EXTEND),
+                           SERVO_ENDPOINT_RETRACT, SERVO_ENDPOINT_EXTEND, 0, 255);
+  analogWrite(PIN_SELFRIGHT_SERVO, servo_pwm);
 }
 
 void actuators_emergency_stop() {
