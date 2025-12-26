@@ -119,6 +119,14 @@
 #define SAFE_WEAPON_US     WEAPON_ESC_MIN_US  // Weapon at minimum throttle
 #define SAFE_SERVO_US      SERVO_NEUTRAL_US   // Servo at neutral position
 
+// Phase 5: Arming state machine constants
+#define SWITCH_DEBOUNCE_MS       10     // Switch debounce time (10ms)
+#define ARM_THROTTLE_THRESHOLD   0.03f  // Maximum throttle to allow arming (3%)
+#define REARM_THROTTLE_THRESHOLD 0.10f  // Throttle must drop below this to re-arm (10%)
+
+// Phase 5: Weapon ramping (slower than drive motors for safety)
+#define WEAPON_SLEW_RATE_MAX     10     // 10 units/tick = ~2 seconds 0-100%
+
 // ============================================================================
 // LED DIAGNOSTIC TIMING
 // ============================================================================

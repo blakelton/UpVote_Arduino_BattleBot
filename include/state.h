@@ -57,9 +57,14 @@ struct RuntimeState {
     ArmState arm_state;      // Current arming state
     SystemError error;       // Current error code
 
-    bool arm_switch_debounced;    // Debounced arm switch (Phase 5+)
-    bool kill_switch_debounced;   // Debounced kill switch (Phase 5+)
-    float last_arm_throttle;      // Throttle value when last armed (Phase 5+)
+    // Phase 5: Switch debouncing
+    bool arm_switch_debounced;      // Debounced arm switch
+    bool kill_switch_debounced;     // Debounced kill switch
+    uint32_t arm_switch_stable_ms;  // Debounce timer for arm switch
+    uint32_t kill_switch_stable_ms; // Debounce timer for kill switch
+
+    // Phase 5: Throttle hysteresis
+    float last_arm_throttle;        // Throttle value when last armed
   } safety;
 
   // --- Output State (Phase 3+) ---

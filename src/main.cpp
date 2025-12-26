@@ -2,6 +2,7 @@
 // Phase 1: Safety Scaffolding
 // Phase 2: CRSF Receiver Input
 // Phase 4: Holonomic Mixing
+// Phase 5: Weapon Control
 #include <Arduino.h>
 #include "config.h"
 #include "state.h"
@@ -10,6 +11,7 @@
 #include "diagnostics.h"
 #include "input.h"
 #include "mixing.h"
+#include "weapon.h"
 
 // ============================================================================
 // CONTROL LOOP TIMING
@@ -37,6 +39,9 @@ void setup() {
 
   // Phase 4: Initialize holonomic mixing
   mixing_init();
+
+  // Phase 5: Initialize weapon control
+  weapon_init();
 
   // Initialize loop timing
   next_loop_us = micros() + LOOP_PERIOD_US;
@@ -91,8 +96,8 @@ void loop() {
   // Note: If failsafe or kill switch active, motors stay at last commanded values
   // actuators_update() will still write outputs (likely zero from last failsafe)
 
-  // Phase 5: Weapon control will go here
-  // weapon_update();
+  // Phase 5: Weapon control (arming state machine + output scaling)
+  weapon_update();
 
   // Phase 6: Servo control will go here
   // servo_update();

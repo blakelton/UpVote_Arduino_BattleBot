@@ -340,9 +340,73 @@ intuitive omnidirectional control.
 1. ⏳ Hardware testing: Verify pure X, Y, R motions
 2. ⏳ Hardware testing: Test combined motions (diagonal + rotation)
 3. ⏳ Hardware testing: Verify drive mode switching
-4. ⏳ Proceed to Phase 5: Weapon Control & Arming State Machine
+4. ✅ Proceed to Phase 5: Weapon Control & Arming State Machine
 
-**Git Status**: Not yet committed (waiting for user confirmation)
+**Git Status**: Committed and pushed to origin/master
+- Commit 3997338: Phase 4 Holonomic Mixing - COMPLETE
+
+---
+
+### [2025-12-25 07:20] Phase 5 COMPLETE: Weapon Control & Arming State Machine
+**Type**: Phase Completion
+**Status**: Implementation complete, built successfully, ready to commit
+
+**Phase 5 Summary**:
+Safety-critical weapon control with multi-condition arming state machine, switch debouncing,
+throttle hysteresis, and defense-in-depth design. Excellent memory efficiency (+10 bytes RAM).
+
+**Build Results**:
+- **RAM**: 394 bytes (19.2% of 2KB, 25.7% of Phase 5 budget ✅)
+- **Flash**: 8988 bytes (27.9% of 32KB)
+- **Change from Phase 4**: +10 bytes RAM, +650 bytes Flash
+
+**Files Created**:
+1. `include/weapon.h` - Weapon control API (26 lines)
+2. `src/weapon.cpp` - Arming state machine implementation (185 lines)
+
+**Files Modified**:
+1. `include/state.h` - Added debounce timer fields and throttle hysteresis tracking
+2. `include/config.h` - Added weapon control constants (lines 122-128)
+3. `src/state.cpp` - Initialized new state fields (arm_switch_stable_ms, kill_switch_stable_ms)
+4. `src/main.cpp` - Integrated weapon module (weapon_init() and weapon_update())
+
+**Safety Features Implemented**:
+- ✅ Multi-condition arming state machine (ALL preconditions must be true to arm)
+- ✅ 10ms switch debouncing prevents accidental arming from switch bounces
+- ✅ Throttle hysteresis (arm at ≤3%, must drop below 10% to re-arm)
+- ✅ Multiple independent disarming triggers (ANY condition causes immediate disarm)
+- ✅ Weapon soft-start with slower slew rate (10 units/tick vs 25 for drive motors)
+- ✅ Always boots to DISARMED state (safety default)
+- ✅ Link loss triggers immediate disarm
+- ✅ Kill switch triggers immediate disarm
+- ✅ System error triggers immediate disarm
+
+**Arming State Machine Logic**:
+```
+DISARMING (highest priority - ANY condition disarms):
+- ARM switch not active → DISARMED
+- Kill switch active → DISARMED
+- Link loss → DISARMED
+- System error → DISARMED
+
+ARMING (only if currently disarmed - ALL must be true):
+- ARM switch active
+- Kill switch inactive
+- Link healthy
+- No system errors
+- Throttle near zero (with hysteresis)
+```
+
+**Throttle Hysteresis Details**:
+- Prevents oscillation when arming near threshold
+- If disarmed with high throttle (>3%): Must drop below 10% to re-arm
+- If disarmed with low throttle (≤3%): Can re-arm at ≤3%
+- Eliminates rapid arm/disarm cycling at threshold
+
+**Next Steps**:
+1. ✅ Commit Phase 5 to git - IN PROGRESS
+2. ⏳ Push to GitHub
+3. ⏳ Proceed to Phase 6: Servo Control (Self-Righting)
 
 ---
 

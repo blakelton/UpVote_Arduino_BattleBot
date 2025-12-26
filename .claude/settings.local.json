@@ -15,7 +15,10 @@
       "Bash(platformio run:*)",
       "Bash(python -m platformio run:*)",
       "Bash(python3 -m platformio run:*)",
-      "Bash(where.exe:*)"
+      "Bash(where.exe:*)",
+      "Bash(ls:*)",
+      "Bash(git rm:*)",
+      "Bash(~/.platformio/penv/Scripts/platformio.exe run)"
     ]
   }
 }

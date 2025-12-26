@@ -33,6 +33,8 @@ RuntimeState g_state = {
     .error = ERR_NONE,
     .arm_switch_debounced = false,
     .kill_switch_debounced = false,
+    .arm_switch_stable_ms = 0,
+    .kill_switch_stable_ms = 0,
     .last_arm_throttle = 0.0f
   },
 
