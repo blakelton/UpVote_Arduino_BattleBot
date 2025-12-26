@@ -119,6 +119,19 @@
 #define INPUT_DEADBAND  0.05f  // 5% deadband zone around center
 
 // ============================================================================
+// CRSF TELEMETRY CONSTANTS
+// ============================================================================
+
+// Telemetry configuration
+#define CRSF_TELEMETRY_ENABLED  1     // Set to 0 to disable telemetry
+#define TELEMETRY_UPDATE_MS     1000  // Send telemetry every 1 second (1 Hz)
+
+// Battery voltage monitoring (optional)
+// Uncomment and adjust if you add a voltage divider to A0
+// #define BATTERY_MONITOR_PIN     A0
+// #define BATTERY_SCALE_FACTOR    0.0049  // Calibration factor (ADC to volts)
+
+// ============================================================================
 // MEMORY BUDGET TRACKING
 // ============================================================================
 

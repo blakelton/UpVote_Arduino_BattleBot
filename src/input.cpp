@@ -4,6 +4,7 @@
 #include "config.h"
 #include "state.h"
 #include "safety.h"
+#include "diagnostics.h"
 #include <avr/pgmspace.h>
 
 // ============================================================================
@@ -326,6 +327,78 @@ static void crsf_process_byte(uint8_t byte) {
   }
 }
 
+// ============================================================================
+// Phase 2.5: CRSF Telemetry (TX to Receiver)
+// ============================================================================
+
+#if CRSF_TELEMETRY_ENABLED
+
+// Track last telemetry transmission time
+static uint32_t last_telemetry_ms = 0;
+
+// Send battery telemetry packet (0x08)
+// Repurposes fields for battlebot status:
+// - Voltage: Battery voltage (if monitored) or nominal 7.4V
+// - Current: Not used (0)
+// - Capacity: Error code (low 16 bits)
+// - Remaining %: Free RAM percentage
+static void crsf_send_battery_telemetry() {
+  uint8_t packet[16];
+  uint8_t idx = 0;
+
+  // Build packet header
+  packet[idx++] = CRSF_ADDRESS_FLIGHT_CONTROLLER;  // 0xC8
+  packet[idx++] = 11;  // Frame length (type + 8 payload + CRC)
+  packet[idx++] = CRSF_FRAMETYPE_BATTERY_SENSOR;   // 0x08
+
+  // Payload: Battery Sensor format (8 bytes)
+
+  // Voltage (uint16_t, big-endian, in decivolts 0.1V)
+  uint16_t voltage_dv = 0;
+  #ifdef BATTERY_MONITOR_PIN
+    // Read battery voltage from ADC
+    int adc = analogRead(BATTERY_MONITOR_PIN);
+    float voltage = adc * BATTERY_SCALE_FACTOR;
+    voltage_dv = (uint16_t)(voltage * 10.0f);  // Convert to decivolts
+  #else
+    // No battery monitoring - report nominal 2S LiPo voltage (7.4V)
+    voltage_dv = 74;  // 7.4V in decivolts
+  #endif
+  packet[idx++] = (voltage_dv >> 8) & 0xFF;  // High byte
+  packet[idx++] = voltage_dv & 0xFF;         // Low byte
+
+  // Current (uint16_t, big-endian, in deciamps 0.1A) - not measured
+  packet[idx++] = 0x00;
+  packet[idx++] = 0x00;
+
+  // Capacity used (uint24_t, big-endian, in mAh)
+  // Repurpose: Send error code in low 16 bits
+  uint16_t error_code = (uint16_t)g_state.safety.error;
+  packet[idx++] = 0x00;                      // High byte (always 0)
+  packet[idx++] = (error_code >> 8) & 0xFF;  // Error code high byte
+  packet[idx++] = error_code & 0xFF;         // Error code low byte
+
+  // Battery remaining (uint8_t, 0-100%)
+  // Repurpose: Send free RAM percentage
+  int free_ram = diagnostics_get_free_ram();
+  uint8_t ram_percent = (uint8_t)((free_ram * 100L) / 2048L);
+  if (ram_percent > 100) ram_percent = 100;  // Clamp to 100%
+  packet[idx++] = ram_percent;
+
+  // Calculate CRC over type + payload (excludes address and length)
+  uint8_t crc = crsf_crc8(&packet[2], idx - 2);
+  packet[idx++] = crc;
+
+  // Send packet to receiver
+  Serial.write(packet, idx);
+}
+
+#endif  // CRSF_TELEMETRY_ENABLED
+
+// ============================================================================
+// Input Update Functions
+// ============================================================================
+
 void input_update() {
   // Process all available UART bytes (non-blocking)
   while (Serial.available() > 0) {
@@ -352,4 +425,15 @@ void input_update() {
     g_state.input.kill_switch = false;
     g_state.input.selfright_switch = false;
   }
+}
+
+void input_update_telemetry() {
+  #if CRSF_TELEMETRY_ENABLED
+    // Rate-limit telemetry to 1 Hz (every 1000ms)
+    uint32_t now = millis();
+    if (now - last_telemetry_ms >= TELEMETRY_UPDATE_MS) {
+      last_telemetry_ms = now;
+      crsf_send_battery_telemetry();
+    }
+  #endif
 }

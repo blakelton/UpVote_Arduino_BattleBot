@@ -75,6 +75,9 @@ void loop() {
   // Phase 2: Process CRSF receiver input
   input_update();
 
+  // Phase 2.5: Send telemetry to TX16S (1 Hz)
+  input_update_telemetry();
+
   // Phase 4: Drive mixing will go here
   // mixer_update();
 

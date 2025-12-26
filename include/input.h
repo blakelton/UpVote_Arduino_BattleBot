@@ -12,6 +12,7 @@
 // CRSF frame structure
 #define CRSF_ADDRESS_FLIGHT_CONTROLLER  0xC8
 #define CRSF_FRAMETYPE_RC_CHANNELS      0x16
+#define CRSF_FRAMETYPE_BATTERY_SENSOR   0x08  // Telemetry: Battery sensor
 
 // Frame size constraints
 #define CRSF_FRAME_SIZE_MAX             64   // Maximum CRSF frame size
@@ -39,5 +40,10 @@ void input_init();
 // Processes incoming CRSF packets, updates RuntimeState.input
 // Call this every control loop iteration (100 Hz)
 void input_update();
+
+// Send telemetry data back to TX16S transmitter
+// Sends battery voltage, free RAM, and system status
+// Call this every control loop iteration (100 Hz) - internally rate-limited to 1 Hz
+void input_update_telemetry();
 
 #endif // INPUT_H
