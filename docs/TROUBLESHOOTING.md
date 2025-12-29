@@ -25,7 +25,7 @@
 ```
 Bot won't power on?
 ├─ Battery connected? → NO → Connect battery
-├─ Battery charged? → NO → Charge battery (8.4V)
+├─ Battery charged? → NO → Charge battery (12.6V for 3S)
 ├─ Power switch on? → NO → Turn on power switch
 └─ LED lights up? → NO → Check Arduino power LED
                   → YES → See LED pattern below
@@ -352,7 +352,7 @@ Weapon won't arm?
 **Symptom**: Arduino power LED (near USB jack) doesn't light
 
 **Checklist**:
-1. [ ] Battery connected and charged (>7.4V)
+1. [ ] Battery connected and charged (>10.5V for 3S)
 2. [ ] Power switch ON (if present)
 3. [ ] Check battery connector polarity (+ and - correct)
 4. [ ] Measure battery voltage with multimeter
@@ -465,7 +465,7 @@ Weapon won't arm?
 
 1. **ESC Connection**:
    - [ ] ESC signal wire → Arduino pin 3
-   - [ ] ESC powered from main battery (2S)
+   - [ ] ESC powered from main battery (3S)
    - [ ] ESC ground → Arduino ground
 
 2. **ESC Calibration**:
@@ -714,7 +714,7 @@ If watchdog doesn't trigger: Watchdog not configured correctly (firmware bug)
 | Component | Spec | Notes |
 |-----------|------|-------|
 | **Arduino UNO** | ATmega328P | 16MHz, 2KB RAM, 32KB Flash |
-| **Battery** | 2S LiPo | 7.4V nominal, 8.4V full |
+| **Battery** | 3S LiPo | 11.1V nominal, 12.6V full |
 | **Receiver** | CR8 Nano | ExpressLRS 2.4GHz |
 | **Transmitter** | RadioMaster TX16S | EdgeTX firmware |
 | **Motor Shield** | L293D | Dual H-bridge, 600mA per channel |

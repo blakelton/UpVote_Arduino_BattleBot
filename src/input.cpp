@@ -404,8 +404,8 @@ static void crsf_send_battery_telemetry() {
     float voltage = adc * BATTERY_SCALE_FACTOR;
     voltage_dv = (uint16_t)(voltage * 10.0f);  // Convert to decivolts
   #else
-    // No battery monitoring - report nominal 2S LiPo voltage (7.4V)
-    voltage_dv = 74;  // 7.4V in decivolts
+    // No battery monitoring - report nominal 3S LiPo voltage (11.1V)
+    voltage_dv = 111;  // 11.1V in decivolts (3S LiPo)
   #endif
   packet[idx++] = (voltage_dv >> 8) & 0xFF;  // High byte
   packet[idx++] = voltage_dv & 0xFF;         // Low byte

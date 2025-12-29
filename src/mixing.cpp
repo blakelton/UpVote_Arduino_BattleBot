@@ -143,8 +143,8 @@ void mixing_update() {
   // - Polarity inversion (if configured)
   // - Global duty clamp (thermal protection)
   // - Slew-rate limiting (prevents brownouts)
-  actuators_set_motor(2, fl_pwm);  // Motor 2: Front-Left
-  actuators_set_motor(3, fr_pwm);  // Motor 3: Front-Right
+  actuators_set_motor(3, fl_pwm);  // Motor 3: Front-Left (swapped from M2 to M4)
+  actuators_set_motor(2, fr_pwm);  // Motor 2: Front-Right (swapped from M3 to M3)
   actuators_set_motor(0, rl_pwm);  // Motor 0: Rear-Left
   actuators_set_motor(1, rr_pwm);  // Motor 1: Rear-Right
 }

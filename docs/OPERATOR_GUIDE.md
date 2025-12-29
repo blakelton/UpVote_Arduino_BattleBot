@@ -1,8 +1,8 @@
 # UpVote Battlebot - Operator Quick Start Guide
 
-**Version**: 1.0
+**Version**: 1.1 (3S Upgrade)
 **Firmware**: Phases 1-6 Complete
-**Last Updated**: 2025-12-26
+**Last Updated**: 2025-12-29
 
 ---
 
@@ -23,7 +23,7 @@
 
 ### Hardware Checklist
 
-- [ ] **Battery**: 2S LiPo fully charged (8.4V nominal)
+- [ ] **Battery**: 3S LiPo fully charged (12.6V nominal)
 - [ ] **Receiver**: CR8 Nano ExpressLRS bound to TX16S
 - [ ] **Transmitter**: TX16S powered on, model selected
 - [ ] **Mechanical**: All screws tight, weapon balanced
@@ -60,7 +60,7 @@
 
 ### Step 2: Connect Battery
 
-1. **Plug in 2S LiPo** to main power connector
+1. **Plug in 3S LiPo** to main power connector
 2. **Observe LED** on Arduino UNO (pin 13):
    - Should **blink slowly** (1 Hz) = SAFE mode ✓
    - If **solid ON** or **rapid blink**, see [Troubleshooting](TROUBLESHOOTING.md)
@@ -68,7 +68,7 @@
 ### Step 3: Verify Link
 
 1. **Check TX16S telemetry screen**:
-   - Should show "Batt: 7.4V" (or actual voltage if monitored)
+   - Should show "Batt: 11.1V" (or actual voltage if monitored)
    - "Fuel/Remaining" should show ~80-85% (free RAM percentage)
    - If no telemetry, see [Troubleshooting](TROUBLESHOOTING.md)
 
@@ -265,7 +265,7 @@ If control loop takes >10ms (shouldn't happen):
    - LED goes solid ON
 
 4. **Disconnect Battery**:
-   - Unplug 2S LiPo connector
+   - Unplug 3S LiPo connector
    - LED turns off
    - **Wait 10 seconds** before handling weapon
 
@@ -277,8 +277,8 @@ If control loop takes >10ms (shouldn't happen):
 ### Battery Care
 
 - **Never** leave LiPo connected when not in use
-- **Charge** to 8.4V (full) before next match
-- **Storage charge** (7.6V) if not using within 3 days
+- **Charge** to 12.6V (full) before next match
+- **Storage charge** (11.4V = 3.8V/cell) if not using within 3 days
 - **Dispose** if puffed or damaged
 
 ---

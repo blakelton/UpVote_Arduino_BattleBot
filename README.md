@@ -119,8 +119,9 @@ UpVote/
   - 32KB Flash (9370 bytes used, 29.0%)
 - **RC Link**: ExpressLRS (CR8 Nano 2.4GHz)
 - **Transmitter**: RadioMaster TX16S EdgeTX
-- **Power**: 2S LiPo (7.4V nominal, 8.4V charged)
-- **Motors**: 4× drive + 1× weapon (brushed DC)
+- **Power**: 3S LiPo (11.1V nominal, 12.6V charged)
+- **Drive Motors**: 4× TT motors via L293D shield
+- **Weapon Motor**: RS2205 brushless via HW30A ESC
 - **Servo**: 1× self-right (standard 5V)
 
 ### Performance Metrics

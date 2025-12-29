@@ -29,14 +29,15 @@ For competition day:
 
 | Document | Lines | Purpose | Audience | Print? |
 |----------|-------|---------|----------|--------|
-| **[WIRING_DIAGRAM.md](WIRING_DIAGRAM.md)** | 711 | Complete electrical wiring reference | Builders | ✅ Yes |
+| **[WIRING_DIAGRAM.md](WIRING_DIAGRAM.md)** | 738 | Complete electrical wiring reference (3S) | Builders | ✅ Yes |
 | **[HARDWARE_TESTING_GUIDE.md](HARDWARE_TESTING_GUIDE.md)** | 1,300+ | Incremental testing procedures (12 tests) | Builders | ✅ Yes |
-| **[OPERATOR_GUIDE.md](OPERATOR_GUIDE.md)** | 540 | How to operate the bot | Operators | ✅ Yes |
+| **[OPERATOR_GUIDE.md](OPERATOR_GUIDE.md)** | 540 | How to operate the bot (3S) | Operators | ✅ Yes |
 | **[LED_STATUS_REFERENCE.md](LED_STATUS_REFERENCE.md)** | 407 | LED pattern interpretation | Operators | ✅ Yes |
-| **[COMPETITION_CHECKLIST.md](COMPETITION_CHECKLIST.md)** | 573 | Pre-match, in-arena, post-match | Operators | ✅ Yes |
-| **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | 580 | Diagnostic procedures | Operators | ✅ Yes |
+| **[COMPETITION_CHECKLIST.md](COMPETITION_CHECKLIST.md)** | 573 | Pre-match, in-arena, post-match (3S) | Operators | ✅ Yes |
+| **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | 580 | Diagnostic procedures (3S) | Operators | ✅ Yes |
+| **[3S_UPGRADE_GUIDE.md](3S_UPGRADE_GUIDE.md)** | 1,050+ | Complete 3S upgrade reference | Builders/Operators | ✅ Yes |
 
-**Total Documentation**: 4,100+ lines
+**Total Documentation**: 5,200+ lines
 
 ---
 

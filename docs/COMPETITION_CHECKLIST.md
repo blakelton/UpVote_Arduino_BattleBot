@@ -51,7 +51,7 @@
   - All switches in safe positions (SA DOWN, SD DOWN)
 
 - ☐ **Batteries Charged**
-  - Main 2S LiPo fully charged (8.4V nominal)
+  - Main 3S LiPo fully charged (12.6V nominal)
   - At least 2 spare batteries charged
   - No puffing or damage
   - Storage temp: 20-25°C (68-77°F)
@@ -132,7 +132,7 @@
 ### Spares & Tools
 
 - ☐ **Spare Parts**
-  - At least 2 spare 2S LiPo batteries (charged)
+  - At least 2 spare 3S LiPo batteries (charged)
   - Spare wheels (if applicable)
   - Spare fasteners (M3/M4 screws)
   - Spare weapon components (if available)
@@ -160,7 +160,7 @@
 ### Battery & Power
 
 - ☐ **Battery Fully Charged**
-  - Check voltage: Should be 8.4V ± 0.1V (full charge)
+  - Check voltage: Should be 12.6V ± 0.1V (full charge)
   - If < 8.0V → Charge before match
   - No puffing or heat
 
@@ -211,7 +211,7 @@
    - All switches safe (SA DOWN, SD DOWN, slider BOTTOM)
 
 2. ☐ **Connect Battery**
-   - Plug in 2S LiPo
+   - Plug in 3S LiPo
    - Observe Arduino LED → Should be **slow blink (1 Hz)**
    - If solid ON or fast blink → TROUBLESHOOT (see TROUBLESHOOTING.md)
 
@@ -349,7 +349,7 @@
   - Safe to retrieve
 
 - ☐ **Disconnect Battery**
-  - Unplug 2S LiPo
+  - Unplug 3S LiPo
   - **Wait 10 seconds before handling weapon**
   - ESC capacitors discharge
 
@@ -419,7 +419,7 @@
 ### Preparation
 
 - ☐ **Battery Ready**
-  - Fully charged 2S LiPo (8.4V)
+  - Fully charged 3S LiPo (12.6V)
   - Cool to touch (not hot from charger)
 
 - ☐ **Repairs Complete**
