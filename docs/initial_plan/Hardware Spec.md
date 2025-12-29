@@ -66,7 +66,8 @@ Ref: https://www.printables.com/model/897022-force-knight-1lb-plastic-antweight-
 
 ## 🔄 Self-Righting
 - **Actuator:** Standard servo
-- **Power:** 5V BEC (not shield)
+- **Power:** 5V from L293D shield motor terminal (prevents Arduino 5V pin overload)
+- **Signal:** Arduino D11 (PWM)
 
 ---
 

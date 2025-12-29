@@ -120,9 +120,9 @@ UpVote/
 - **RC Link**: ExpressLRS (CR8 Nano 2.4GHz)
 - **Transmitter**: RadioMaster TX16S EdgeTX
 - **Power**: 3S LiPo (11.1V nominal, 12.6V charged)
-- **Drive Motors**: 4× TT motors via L293D shield
-- **Weapon Motor**: RS2205 brushless via HW30A ESC
-- **Servo**: 1× self-right (standard 5V)
+- **Drive Motors**: 4× TT motors via L293D shield (5V)
+- **Weapon Motor**: RS2205 brushless via HW30A ESC (11.1V)
+- **Servo**: 1× self-right (5V via shield motor terminal, signal from D11)
 
 ### Performance Metrics
 - **Control Loop**: 100 Hz (10ms period)

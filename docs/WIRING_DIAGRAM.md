@@ -81,10 +81,11 @@
     │  (All grounds connected)   │
     └────────────────────────────┘
 
-5V Rail Consumers:
-- Arduino UNO (via 5V pin)
-- CR8 Nano Receiver
-- Self-Right Servo (via Arduino pin 11)
+5V Rail Consumers (from BEC 5V output):
+- Arduino UNO (via shield's onboard regulator)
+- CR8 Nano Receiver (via BEC 5V)
+- L293D Motor Shield motor power terminal (powers 4× TT motors + servo)
+- Self-Right Servo (via shield's 5V motor rail, signal from Arduino D11)
 
 11.1V Rail Consumers:
 - L293D Motor Shield (motor power input)
@@ -343,30 +344,46 @@ Battery 11.1V+ ─────────→ Weapon ESC red wire (power)
 - Weapon ESC should only spin in one direction (no reverse)
 - Ensure weapon spins in correct direction before installing blade
 
-### 7. Arduino to Self-Right Servo
+### 7. L293D Shield to Self-Right Servo
 
-**Connection**: PWM signal from Arduino to servo
+**Connection**: Use L293D Motor Shield's built-in servo pin headers
 
+The L293D Motor Shield has **2 servo pin headers** (SERVO_1 and SERVO_2) that provide:
+- **5V power** from the shield's motor power input (BEC 5V in this configuration)
+- **Ground** connection
+- **Signal pass-through** from Arduino pins D9 or D10
+
+**Wiring** (using SERVO_2 header, since D10 is used for weapon):
 ```
-Arduino D11 (PWM) ──────→ Servo signal wire (white/yellow/orange)
-Arduino 5V ─────────────→ Servo red wire (power)
-Arduino GND ────────────→ Servo black/brown wire (ground)
+Standard Servo ──────→ L293D Shield SERVO_2 Header (3-pin)
+   ├─ Signal (white)  → SERVO_2 pin 1 (connected to Arduino D11 internally)
+   ├─ 5V (red)        → SERVO_2 pin 2 (powered from shield's 5V motor rail)
+   └─ GND (black)     → SERVO_2 pin 3 (shield ground)
 ```
 
-**Servo Power**:
-- **Option 1**: Power servo from Arduino 5V pin
-  - **Pros**: Simple wiring
-  - **Cons**: Arduino 5V pin limited to ~500mA; servo stall current can exceed this
-- **Option 2**: Power servo from separate 5V BEC
-  - **Pros**: Dedicated power, no Arduino overload risk
-  - **Cons**: Additional BEC required
+**Shield Servo Pin Headers**:
+- **SERVO_1**: Signal from D9 (used by drive motor PWM - **DO NOT USE**)
+- **SERVO_2**: Signal from D10 (used by weapon ESC - **DO NOT USE**)
 
-**Recommended**: Use Arduino 5V pin if servo is small (< 500mA stall). Use separate BEC if servo draws > 500mA.
+⚠️ **IMPORTANT**: Since both D9 and D10 are already used (drive motor + weapon), we'll use Arduino D11 directly but **power the servo from the shield's 5V motor rail** instead of Arduino's 5V pin.
+
+**Revised Wiring** (hybrid approach):
+```
+Servo Signal (white) ──→ Arduino D11 (PWM)
+Servo Power (red)    ──→ L293D Shield 5V motor terminal (+)
+Servo Ground (black) ──→ L293D Shield GND motor terminal (-)
+```
+
+**Power Source**:
+- **Servo 5V power**: L293D shield's motor power terminal (connected to BEC 5V output)
+- **Advantage**: Shield motor rail is rated for higher current (up to 2A) vs Arduino 5V pin (500mA limit)
+- **Safety**: Prevents Arduino 5V pin overload during servo stall conditions (800mA)
 
 **Servo Requirements**:
 - **Type**: Standard hobby servo (analog or digital)
 - **Voltage**: 5V
 - **Torque**: Depends on self-right mechanism design
+- **Stall Current**: Up to 2A (shield motor rail limit)
 - **Signal**: Standard servo PWM
   - Neutral: 1500 µs
   - Retract: 700 µs (configurable)
@@ -415,7 +432,9 @@ Arduino GND ────────────→ Servo black/brown wire (grou
 - ☐ L293D shield stacked on Arduino (PWM pins: D3, D5, D6, D9)
 - ☐ Shift register control pins: D4, D7, D8, D12
 - ☐ Arduino D10 to Weapon ESC signal
-- ☐ Arduino D11 to Servo signal
+- ☐ Arduino D11 to Servo signal (white wire)
+- ☐ Servo power (red) to L293D shield 5V motor terminal (+)
+- ☐ Servo ground (black) to L293D shield GND motor terminal (-)
 
 **Motor Connections**:
 - ☐ L293D M1 to Rear-Left motor
@@ -491,9 +510,10 @@ Arduino GND ────────────→ Servo black/brown wire (grou
 
 **Symptom**: Arduino resets when servo moves, brownouts
 **Cause**: Servo stall current > 500mA (Arduino 5V pin limit)
-**Fix**:
-- Use separate 5V BEC for servo
-- Or use smaller servo (< 500mA stall)
+**Fix** (IMPLEMENTED IN THIS BUILD):
+- ✅ Power servo from L293D shield's 5V motor terminal (rated for 2A)
+- ✅ Signal wire from Arduino D11 to servo signal (white wire)
+- This prevents Arduino 5V pin overload during servo stall conditions
 
 ---
 
@@ -585,15 +605,18 @@ Arduino GND ────────────→ Servo black/brown wire (grou
 - Servo doesn't move
 
 **Checks**:
-1. ☐ Servo receiving 5V power?
-2. ☐ Servo signal wire connected to Arduino D11?
-3. ☐ Servo ground connected to Arduino GND?
+1. ☐ Servo receiving 5V power from L293D shield motor terminal?
+2. ☐ Servo signal wire (white) connected to Arduino D11?
+3. ☐ Servo ground (black) connected to L293D shield GND motor terminal?
 4. ☐ Kill switch inactive? (SD switch DOWN)
 5. ☐ Link OK?
+6. ☐ BEC 5V output connected to L293D shield motor terminal?
 
 **Fixes**:
-- Check servo power (should be 5V)
-- Verify signal connection to D11
+- Check servo power at shield's 5V motor terminal (should be 5V)
+- Verify signal wire (white) connected to Arduino D11
+- Verify servo power (red) connected to shield's 5V motor terminal (+)
+- Verify servo ground (black) connected to shield's GND motor terminal (-)
 - Ensure SD switch DOWN (kill switch inactive)
 - Test servo with servo tester
 

@@ -141,7 +141,7 @@ This guide documents the upgrade from 2S LiPo (7.4V nominal) to 3S LiPo (11.1V n
 | **TT Motors (Drive)** | Up to 12V | ✅ **Safe** (firmware limits to 80% = 8.9V effective) |
 | **Arduino UNO** | 7-12V Vin (5V regulated) | ✅ **Perfect** (BEC provides 5V) |
 | **CR8 Nano Receiver** | 5V (from BEC) | ✅ **Perfect** (unchanged) |
-| **Self-Right Servo** | 5V (from BEC) | ✅ **Perfect** (unchanged) |
+| **Self-Right Servo** | 5V (from shield motor terminal) | ✅ **Perfect** (unchanged) |
 
 ### Detailed Analysis
 
@@ -149,7 +149,8 @@ This guide documents the upgrade from 2S LiPo (7.4V nominal) to 3S LiPo (11.1V n
 - Input range: 2S-6S (7.4V - 22.2V)
 - 3S @ 11.1V is well within spec
 - Output: 5V @ 3A (unchanged from 2S)
-- Powers: Arduino VIN, CR8 Nano RX, self-right servo
+- Powers: L293D shield motor terminal, CR8 Nano RX (Arduino powered via shield's onboard regulator)
+- Self-right servo powered from shield's 5V motor terminal (prevents Arduino 5V pin overload)
 - **No changes needed** ✅
 
 **L293D Motor Shield**:
