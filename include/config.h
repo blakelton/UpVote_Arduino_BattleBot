@@ -11,11 +11,13 @@
 // See: docs/hardware/pin_assignments.md for full pinout details
 
 // --- Drive Motors (via L293D Shield) ---
-// Motor PWM pins (enable pins)
-#define PIN_MOTOR_FL_PWM    9   // Front-Left motor (M3 on shield, Timer1)
-#define PIN_MOTOR_FR_PWM   10   // Front-Right motor (M4 on shield, Timer1)
-#define PIN_MOTOR_RL_PWM    5   // Rear-Left motor (M1 on shield, Timer0)
-#define PIN_MOTOR_RR_PWM    6   // Rear-Right motor (M2 on shield, Timer0)
+// PHASE 7: AFMotor library now controls motor PWM - these pins are RESERVED
+// AFMotor pin usage: Pin 3 (M2), Pin 5 (M4), Pin 6 (M3), Pin 11 (M1)
+// Old manual PWM control (deprecated - kept for reference only):
+#define PIN_MOTOR_FL_PWM    9   // OLD: Front-Left motor (M3 on shield, Timer1) - NOW USED FOR WEAPON
+#define PIN_MOTOR_FR_PWM   10   // OLD: Front-Right motor (M4 on shield, Timer1) - NOW USED FOR SERVO
+#define PIN_MOTOR_RL_PWM    5   // OLD: Rear-Left motor (M1 on shield, Timer0) - RESERVED BY AFMOTOR
+#define PIN_MOTOR_RR_PWM    6   // OLD: Rear-Right motor (M2 on shield, Timer0) - RESERVED BY AFMOTOR
 
 // 74HC595 Shift Register Control (for motor direction)
 #define PIN_SR_LATCH       12   // Shift register latch (STcp)
@@ -23,11 +25,14 @@
 #define PIN_SR_DATA         8   // Serial data input (DS)
 #define PIN_SR_CLOCK        4   // Shift clock (SHcp)
 
-// --- Weapon ESC (bypasses shield, uses Timer2) ---
-#define PIN_WEAPON_ESC      3   // Weapon motor ESC PWM signal (Timer2)
+// --- Weapon ESC (bypasses shield, uses Timer1) ---
+// CRITICAL: AFMotor library uses pins 3,5,6,11 for motor PWM - cannot use these!
+// Pin 3 = M2 PWM (Timer2B/OC2B), Pin 11 = M1 PWM (Timer2A/OC2A)
+// Available pins: 9 (Timer1A/OC1A), 10 (Timer1B/OC1B)
+#define PIN_WEAPON_ESC      9   // Weapon motor ESC PWM signal (Timer1A)
 
-// --- Self-Righting Servo (bypasses shield, uses Timer2) ---
-#define PIN_SELFRIGHT_SERVO 11  // Self-righting servo PWM signal (Timer2)
+// --- Self-Righting Servo (bypasses shield, uses Timer1) ---
+#define PIN_SELFRIGHT_SERVO 10  // Self-righting servo PWM signal (Timer1B)
 
 // --- CRSF Receiver (Hardware Serial) ---
 #define PIN_CRSF_RX         0   // Hardware Serial RX (Arduino RX pin)
@@ -80,11 +85,11 @@
 
 // Phase 3: Motor polarity inversion flags
 // Set to true to invert a motor's direction (corrects wiring polarity)
-// Adjust these during hardware testing if motors spin backwards
-#define MOTOR_FL_INVERTED  false
-#define MOTOR_FR_INVERTED  false
-#define MOTOR_RL_INVERTED  false
-#define MOTOR_RR_INVERTED  false
+// Adjusted based on AFMotor library hardware test results
+#define MOTOR_FL_INVERTED  false  // M4: Correct direction ✓
+#define MOTOR_FR_INVERTED  true   // M3: Inverted ✓
+#define MOTOR_RL_INVERTED  true   // M1: Inverted ✓
+#define MOTOR_RR_INVERTED  true   // M2: Inverted ✓ (runs backward when commanded forward)
 
 // ============================================================================
 // WEAPON ESC CONSTANTS

@@ -1,9 +1,30 @@
 // actuators.cpp - Motor, ESC, and servo output implementation
 // UpVote Battlebot - Phase 1
+// Phase 7: AFMotor library integration for L293D V1 Motor Shield
 #include "actuators.h"
 #include "config.h"
 #include "state.h"
 #include <Arduino.h>
+#include <AFMotor.h>  // Adafruit Motor Shield V1 library (required for L293D shield)
+
+// ============================================================================
+// AFMOTOR OBJECTS - L293D V1 Motor Shield Control
+// ============================================================================
+
+// Motor objects for L293D V1 Motor Shield
+// PHASE 7 FIX: Use optimal PWM frequencies for TT motors
+// Motor terminal mapping (verified via hardware documentation):
+//   M1 terminal = Rear-Left (RL) motor
+//   M2 terminal = Rear-Right (RR) motor
+//   M3 terminal = Front-Right (FR) motor
+//   M4 terminal = Front-Left (FL) motor
+// PWM Frequencies optimized for TT motors (2-4 kHz range):
+//   - MOTOR12_2KHZ = ~2 kHz (Timer2: optimal for M1/M2)
+//   - MOTOR34_8KHZ = ~4 kHz (Timer0: for M3/M4, but freq commented out in lib)
+static AF_DCMotor motor_rl(1, MOTOR12_2KHZ);  // M1: ~2 kHz ✓
+static AF_DCMotor motor_rr(2, MOTOR12_2KHZ);  // M2: ~2 kHz ✓
+static AF_DCMotor motor_fr(3, MOTOR34_8KHZ);  // M3: ~4 kHz ✓
+static AF_DCMotor motor_fl(4, MOTOR34_8KHZ);  // M4: ~4 kHz ✓
 
 // ============================================================================
 // PRIVATE HELPER FUNCTIONS
@@ -11,6 +32,7 @@
 
 // Shift register state (global to avoid ISR safety issues)
 // Tracks current motor direction bits sent to 74HC595
+// TODO Phase 7: Remove after AFMotor integration complete
 static uint8_t g_shift_reg_state = 0x00;
 
 // Write 8 bits to the 74HC595 shift register (motor directions)
@@ -74,6 +96,75 @@ static const bool g_motor_inverted[4] = {
   MOTOR_FR_INVERTED   // Motor 3: Front-Right
 };
 
+// Initialize AFMotor objects to safe stopped state
+static void init_afmotor_motors() {
+  // Initialize all motors - set speed first, then release
+  // This matches the pattern from working test code
+  motor_rl.setSpeed(200);
+  motor_rl.run(RELEASE);
+  motor_rr.setSpeed(200);
+  motor_rr.run(RELEASE);
+  motor_fr.setSpeed(200);
+  motor_fr.run(RELEASE);
+  motor_fl.setSpeed(200);
+  motor_fl.run(RELEASE);
+}
+
+// Update motors using AFMotor library
+static void update_afmotor_motors() {
+  // Read motor commands from global state
+  int16_t fl = g_state.output.motor_fl_pwm;
+  int16_t fr = g_state.output.motor_fr_pwm;
+  int16_t rl = g_state.output.motor_rl_pwm;
+  int16_t rr = g_state.output.motor_rr_pwm;
+
+  // Apply inversion flags BEFORE AFMotor control
+  int16_t rl_adjusted = MOTOR_RL_INVERTED ? -rl : rl;
+  int16_t rr_adjusted = MOTOR_RR_INVERTED ? -rr : rr;
+  int16_t fr_adjusted = MOTOR_FR_INVERTED ? -fr : fr;
+  int16_t fl_adjusted = MOTOR_FL_INVERTED ? -fl : fl;
+
+  // Update Rear-Left motor (M1 terminal)
+  uint8_t rl_speed = (uint8_t)constrain(abs(rl_adjusted), 0, 255);
+  motor_rl.setSpeed(rl_speed);
+  if (rl_speed == 0) {
+    motor_rl.run(RELEASE);  // Coast when stopped (low current draw)
+  } else {
+    motor_rl.run(rl_adjusted >= 0 ? FORWARD : BACKWARD);
+  }
+  delayMicroseconds(100);  // Allow shift register to settle
+
+  // Update Rear-Right motor (M2 terminal)
+  uint8_t rr_speed = (uint8_t)constrain(abs(rr_adjusted), 0, 255);
+  motor_rr.setSpeed(rr_speed);
+  if (rr_speed == 0) {
+    motor_rr.run(RELEASE);
+  } else {
+    motor_rr.run(rr_adjusted >= 0 ? FORWARD : BACKWARD);
+  }
+  delayMicroseconds(100);  // Allow shift register to settle
+
+  // Update Front-Right motor (M3 terminal)
+  uint8_t fr_speed = (uint8_t)constrain(abs(fr_adjusted), 0, 255);
+  motor_fr.setSpeed(fr_speed);
+  if (fr_speed == 0) {
+    motor_fr.run(RELEASE);
+  } else {
+    motor_fr.run(fr_adjusted >= 0 ? FORWARD : BACKWARD);
+  }
+  delayMicroseconds(100);  // Allow shift register to settle
+
+  // Update Front-Left motor (M4 terminal)
+  uint8_t fl_speed = (uint8_t)constrain(abs(fl_adjusted), 0, 255);
+  motor_fl.setSpeed(fl_speed);
+  if (fl_speed == 0) {
+    motor_fl.run(RELEASE);
+  } else {
+    motor_fl.run(fl_adjusted >= 0 ? FORWARD : BACKWARD);
+  }
+  delayMicroseconds(100);  // Allow shift register to settle
+}
+
 // ============================================================================
 // PUBLIC INTERFACE
 // ============================================================================
@@ -82,20 +173,19 @@ void actuators_set_motor(uint8_t motor_index, int16_t command) {
   // Bounds check motor index
   if (motor_index > 3) return;
 
-  // Step 1: Apply polarity inversion if configured
-  int16_t adjusted_command = command;
-  if (g_motor_inverted[motor_index]) {
-    adjusted_command = -command;
-  }
+  // PHASE 7 FIX: Removed polarity inversion from here
+  // Inversion is now ONLY applied in update_afmotor_motors()
+  // This prevents double-inversion bug that was breaking M2
 
-  // Step 2: Apply global duty cycle clamp (thermal protection)
-  adjusted_command = constrain(adjusted_command, -MOTOR_DUTY_CLAMP_MAX, MOTOR_DUTY_CLAMP_MAX);
+  // Step 1: Apply global duty cycle clamp (thermal protection)
+  int16_t adjusted_command = constrain(command, -MOTOR_DUTY_CLAMP_MAX, MOTOR_DUTY_CLAMP_MAX);
 
-  // Step 3: Apply slew-rate limiting (prevents current spikes)
-  int16_t slewed_command = apply_slew_rate(g_motor_previous[motor_index], adjusted_command);
-  g_motor_previous[motor_index] = slewed_command;
+  // Step 2: SLEW RATE DISABLED FOR TESTING - Direct response
+  // int16_t slewed_command = apply_slew_rate(g_motor_previous[motor_index], adjusted_command);
+  // g_motor_previous[motor_index] = slewed_command;
+  int16_t slewed_command = adjusted_command;  // Direct pass-through for testing
 
-  // Step 4: Write to appropriate motor in g_state.output
+  // Step 3: Write to appropriate motor in g_state.output
   switch (motor_index) {
     case 0: g_state.output.motor_rl_pwm = slewed_command; break;  // Rear-Left
     case 1: g_state.output.motor_rr_pwm = slewed_command; break;  // Rear-Right
@@ -105,25 +195,11 @@ void actuators_set_motor(uint8_t motor_index, int16_t command) {
 }
 
 void actuators_init() {
-  // --- Shift Register Pins ---
-  pinMode(PIN_SR_LATCH, OUTPUT);
-  pinMode(PIN_SR_ENABLE, OUTPUT);
-  pinMode(PIN_SR_DATA, OUTPUT);
-  pinMode(PIN_SR_CLOCK, OUTPUT);
-
-  digitalWrite(PIN_SR_ENABLE, LOW);  // Enable shift register outputs
-  shift_register_write(0x00);        // All motor directions to brake (A=0, B=0)
-
-  // --- Motor PWM Pins ---
-  pinMode(PIN_MOTOR_FL_PWM, OUTPUT);
-  pinMode(PIN_MOTOR_FR_PWM, OUTPUT);
-  pinMode(PIN_MOTOR_RL_PWM, OUTPUT);
-  pinMode(PIN_MOTOR_RR_PWM, OUTPUT);
-
-  analogWrite(PIN_MOTOR_FL_PWM, SAFE_MOTOR_PWM);
-  analogWrite(PIN_MOTOR_FR_PWM, SAFE_MOTOR_PWM);
-  analogWrite(PIN_MOTOR_RL_PWM, SAFE_MOTOR_PWM);
-  analogWrite(PIN_MOTOR_RR_PWM, SAFE_MOTOR_PWM);
+  // --- PHASE 7: AFMotor Library Initialization ---
+  // Initialize motors using AFMotor library (handles shift register + PWM internally)
+  // CRITICAL: Do NOT manually initialize shift register or motor PWM pins
+  // AFMotor library handles all of this internally!
+  init_afmotor_motors();
 
   // --- Phase 5/6: Initialize weapon ESC and servo pins ---
   // Note: These use Arduino's analogWrite() which generates PWM at ~490Hz
@@ -142,23 +218,35 @@ void actuators_init() {
 }
 
 void actuators_update() {
-  // Read output state from global state
-  int16_t fl = g_state.output.motor_fl_pwm;
-  int16_t fr = g_state.output.motor_fr_pwm;
-  int16_t rl = g_state.output.motor_rl_pwm;
-  int16_t rr = g_state.output.motor_rr_pwm;
+  // === PHASE 7: AFMotor Integration Switch ===
+  // Set to 1 to use AFMotor library, 0 for old shift register code
+  #define USE_AFMOTOR 1
 
-  // --- Update Motor Directions ---
-  set_motor_direction(2, fl >= 0);  // FL motor (M3)
-  set_motor_direction(3, fr >= 0);  // FR motor (M4)
-  set_motor_direction(0, rl >= 0);  // RL motor (M1)
-  set_motor_direction(1, rr >= 0);  // RR motor (M2)
+  #if USE_AFMOTOR
+    // NEW CODE: Update motors using AFMotor library
+    update_afmotor_motors();
+  #else
+    // OLD CODE: Manual shift register + PWM control
+    // Read output state from global state
+    int16_t fl = g_state.output.motor_fl_pwm;
+    int16_t fr = g_state.output.motor_fr_pwm;
+    int16_t rl = g_state.output.motor_rl_pwm;
+    int16_t rr = g_state.output.motor_rr_pwm;
 
-  // --- Update Motor PWM (absolute value with bounds check - QA fix: H1) ---
-  analogWrite(PIN_MOTOR_FL_PWM, (uint8_t)constrain(abs(fl), MOTOR_PWM_MIN, MOTOR_PWM_MAX));
-  analogWrite(PIN_MOTOR_FR_PWM, (uint8_t)constrain(abs(fr), MOTOR_PWM_MIN, MOTOR_PWM_MAX));
-  analogWrite(PIN_MOTOR_RL_PWM, (uint8_t)constrain(abs(rl), MOTOR_PWM_MIN, MOTOR_PWM_MAX));
-  analogWrite(PIN_MOTOR_RR_PWM, (uint8_t)constrain(abs(rr), MOTOR_PWM_MIN, MOTOR_PWM_MAX));
+    // --- Update Motor Directions ---
+    // HARDWARE MAPPING FIX: Actual wiring is M3=FR, M4=FL (swapped from pin names)
+    set_motor_direction(2, fr >= 0);  // M3 terminal = FR motor (hardware swapped)
+    set_motor_direction(3, fl >= 0);  // M4 terminal = FL motor (hardware swapped)
+    set_motor_direction(0, rl >= 0);  // M1 terminal = RL motor
+    set_motor_direction(1, rr >= 0);  // M2 terminal = RR motor
+
+    // --- Update Motor PWM (absolute value with bounds check) ---
+    // HARDWARE MAPPING FIX: Write FR command to M3 terminal, FL command to M4 terminal
+    analogWrite(PIN_MOTOR_FL_PWM, (uint8_t)constrain(abs(fr), MOTOR_PWM_MIN, MOTOR_PWM_MAX));  // D9=M3 has FR motor
+    analogWrite(PIN_MOTOR_FR_PWM, (uint8_t)constrain(abs(fl), MOTOR_PWM_MIN, MOTOR_PWM_MAX));  // D10=M4 has FL motor
+    analogWrite(PIN_MOTOR_RL_PWM, (uint8_t)constrain(abs(rl), MOTOR_PWM_MIN, MOTOR_PWM_MAX));  // D5=M1 has RL motor
+    analogWrite(PIN_MOTOR_RR_PWM, (uint8_t)constrain(abs(rr), MOTOR_PWM_MIN, MOTOR_PWM_MAX));  // D6=M2 has RR motor
+  #endif
 
   // --- Update Weapon ESC (Phase 5) ---
   // Map microseconds [1000-2000] to PWM duty cycle [0-255]

@@ -105,46 +105,32 @@ DriveMode mixing_get_drive_mode() {
 }
 
 void mixing_update() {
-  // Read inputs from global state (already normalized and deadbanded)
-  float x = g_state.input.roll;   // Strafe (right stick X)
-  float y = g_state.input.pitch;  // Forward/back (right stick Y)
-  float r = g_state.input.yaw;    // Rotation (left stick X)
+  // FULL 4-MOTOR SEQUENTIAL TEST
+  // Tests each motor forward then backward in sequence
+  // Frame-based timing (100Hz loop = 10ms per frame)
 
-  // Apply exponential curves for better feel
-  x = apply_expo(x, g_mode_params.expo);
-  y = apply_expo(y, g_mode_params.expo);
-  r = apply_expo(r, g_mode_params.expo);
+  static uint16_t frame_count = 0;
+  frame_count++;
 
-  // Apply rotation scaling (reduce rotation sensitivity)
-  r *= ROTATION_SCALE;
+  // 8 phases x 2 seconds = 16 second total cycle
+  uint8_t phase = (frame_count / 200) % 8;  // 200 frames = 2 seconds per phase
 
-  // Holonomic mixing (mecanum/omni-wheel formula)
-  // FL = Y + X + R
-  // FR = Y - X - R
-  // RL = Y - X + R
-  // RR = Y + X - R
-  float fl_raw = y + x + r;
-  float fr_raw = y - x - r;
-  float rl_raw = y - x + r;
-  float rr_raw = y + x - r;
+  const int16_t TEST_SPEED = 200;
+  int16_t rl_cmd = 0, rr_cmd = 0, fl_cmd = 0, fr_cmd = 0;
 
-  // Normalize to prevent saturation artifacts
-  normalize_outputs(&fl_raw, &fr_raw, &rl_raw, &rr_raw);
+  switch (phase) {
+    case 0: rl_cmd = TEST_SPEED; break;     // Rear-Left forward
+    case 1: rl_cmd = -TEST_SPEED; break;    // Rear-Left backward
+    case 2: rr_cmd = TEST_SPEED; break;     // Rear-Right forward
+    case 3: rr_cmd = -TEST_SPEED; break;    // Rear-Right backward
+    case 4: fl_cmd = TEST_SPEED; break;     // Front-Left forward
+    case 5: fl_cmd = -TEST_SPEED; break;    // Front-Left backward
+    case 6: fr_cmd = TEST_SPEED; break;     // Front-Right forward
+    case 7: fr_cmd = -TEST_SPEED; break;    // Front-Right backward
+  }
 
-  // Apply mode-specific max duty cycle
-  // Scale from [-1.0, +1.0] to [-max_duty, +max_duty]
-  int16_t fl_pwm = (int16_t)(fl_raw * g_mode_params.max_duty);
-  int16_t fr_pwm = (int16_t)(fr_raw * g_mode_params.max_duty);
-  int16_t rl_pwm = (int16_t)(rl_raw * g_mode_params.max_duty);
-  int16_t rr_pwm = (int16_t)(rr_raw * g_mode_params.max_duty);
-
-  // Send commands to actuators module
-  // actuators_set_motor() will apply:
-  // - Polarity inversion (if configured)
-  // - Global duty clamp (thermal protection)
-  // - Slew-rate limiting (prevents brownouts)
-  actuators_set_motor(3, fl_pwm);  // Motor 3: Front-Left (swapped from M2 to M4)
-  actuators_set_motor(2, fr_pwm);  // Motor 2: Front-Right (swapped from M3 to M3)
-  actuators_set_motor(0, rl_pwm);  // Motor 0: Rear-Left
-  actuators_set_motor(1, rr_pwm);  // Motor 1: Rear-Right
+  actuators_set_motor(0, rl_cmd);  // M1 (Rear-Left)
+  actuators_set_motor(1, rr_cmd);  // M2 (Rear-Right)
+  actuators_set_motor(2, fl_cmd);  // M4 (Front-Left)
+  actuators_set_motor(3, fr_cmd);  // M3 (Front-Right)
 }
