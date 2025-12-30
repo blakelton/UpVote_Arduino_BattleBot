@@ -1,0 +1,3 @@
+[submodule "sub/AlfredoCRSF"]
+	path = sub/AlfredoCRSF
+	url = https://github.com/AlfredoSystems/AlfredoCRSF.git

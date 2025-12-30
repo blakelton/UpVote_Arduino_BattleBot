@@ -12,19 +12,19 @@
 // ============================================================================
 
 // Motor objects for L293D V1 Motor Shield
-// PHASE 7 FIX: Use optimal PWM frequencies for TT motors
+// PHASE 7 FIX: Use matching PWM frequencies for all motors
 // Motor terminal mapping (verified via hardware documentation):
 //   M1 terminal = Rear-Left (RL) motor
 //   M2 terminal = Rear-Right (RR) motor
 //   M3 terminal = Front-Right (FR) motor
 //   M4 terminal = Front-Left (FL) motor
-// PWM Frequencies optimized for TT motors (2-4 kHz range):
-//   - MOTOR12_2KHZ = ~2 kHz (Timer2: optimal for M1/M2)
-//   - MOTOR34_8KHZ = ~4 kHz (Timer0: for M3/M4, but freq commented out in lib)
-static AF_DCMotor motor_rl(1, MOTOR12_2KHZ);  // M1: ~2 kHz ✓
-static AF_DCMotor motor_rr(2, MOTOR12_2KHZ);  // M2: ~2 kHz ✓
-static AF_DCMotor motor_fr(3, MOTOR34_8KHZ);  // M3: ~4 kHz ✓
-static AF_DCMotor motor_fl(4, MOTOR34_8KHZ);  // M4: ~4 kHz ✓
+// PWM Frequencies: Use lowest available frequencies for consistent motor response
+//   - MOTOR12_2KHZ = ~2 kHz (Timer2: for M1/M2)
+//   - MOTOR34_1KHZ = ~1 kHz (Timer0: for M3/M4, lowest available on UNO)
+static AF_DCMotor motor_rl(1, MOTOR12_2KHZ);  // M1: ~2 kHz
+static AF_DCMotor motor_rr(2, MOTOR12_2KHZ);  // M2: ~2 kHz
+static AF_DCMotor motor_fr(3, MOTOR34_1KHZ);  // M3: ~1 kHz (closer to M1/M2)
+static AF_DCMotor motor_fl(4, MOTOR34_1KHZ);  // M4: ~1 kHz (closer to M1/M2)
 
 // ============================================================================
 // PRIVATE HELPER FUNCTIONS
@@ -110,6 +110,10 @@ static void init_afmotor_motors() {
   motor_fl.run(RELEASE);
 }
 
+// Front motor minimum PWM boost to overcome higher inertia/friction
+// This is added to front motor speed when they're moving (non-zero command)
+#define FRONT_MOTOR_BOOST 30  // Add 30 PWM counts to front motors
+
 // Update motors using AFMotor library
 static void update_afmotor_motors() {
   // Read motor commands from global state
@@ -124,45 +128,52 @@ static void update_afmotor_motors() {
   int16_t fr_adjusted = MOTOR_FR_INVERTED ? -fr : fr;
   int16_t fl_adjusted = MOTOR_FL_INVERTED ? -fl : fl;
 
-  // Update Rear-Left motor (M1 terminal)
+  // Calculate base speeds
   uint8_t rl_speed = (uint8_t)constrain(abs(rl_adjusted), 0, 255);
+  uint8_t rr_speed = (uint8_t)constrain(abs(rr_adjusted), 0, 255);
+  uint8_t fr_speed = (uint8_t)constrain(abs(fr_adjusted), 0, 255);
+  uint8_t fl_speed = (uint8_t)constrain(abs(fl_adjusted), 0, 255);
+
+  // BOOST FRONT MOTORS: Add fixed offset when motor is commanded to move
+  // This helps front motors overcome their higher inertia threshold
+  if (fr_speed > 0) {
+    fr_speed = (uint8_t)constrain(fr_speed + FRONT_MOTOR_BOOST, 0, 255);
+  }
+  if (fl_speed > 0) {
+    fl_speed = (uint8_t)constrain(fl_speed + FRONT_MOTOR_BOOST, 0, 255);
+  }
+
+  // Update Rear-Left motor (M1 terminal)
   motor_rl.setSpeed(rl_speed);
   if (rl_speed == 0) {
-    motor_rl.run(RELEASE);  // Coast when stopped (low current draw)
+    motor_rl.run(RELEASE);
   } else {
     motor_rl.run(rl_adjusted >= 0 ? FORWARD : BACKWARD);
   }
-  delayMicroseconds(100);  // Allow shift register to settle
 
   // Update Rear-Right motor (M2 terminal)
-  uint8_t rr_speed = (uint8_t)constrain(abs(rr_adjusted), 0, 255);
   motor_rr.setSpeed(rr_speed);
   if (rr_speed == 0) {
     motor_rr.run(RELEASE);
   } else {
     motor_rr.run(rr_adjusted >= 0 ? FORWARD : BACKWARD);
   }
-  delayMicroseconds(100);  // Allow shift register to settle
 
-  // Update Front-Right motor (M3 terminal)
-  uint8_t fr_speed = (uint8_t)constrain(abs(fr_adjusted), 0, 255);
+  // Update Front-Right motor (M3 terminal) - WITH BOOST APPLIED
   motor_fr.setSpeed(fr_speed);
   if (fr_speed == 0) {
     motor_fr.run(RELEASE);
   } else {
     motor_fr.run(fr_adjusted >= 0 ? FORWARD : BACKWARD);
   }
-  delayMicroseconds(100);  // Allow shift register to settle
 
-  // Update Front-Left motor (M4 terminal)
-  uint8_t fl_speed = (uint8_t)constrain(abs(fl_adjusted), 0, 255);
+  // Update Front-Left motor (M4 terminal) - WITH BOOST APPLIED
   motor_fl.setSpeed(fl_speed);
   if (fl_speed == 0) {
     motor_fl.run(RELEASE);
   } else {
     motor_fl.run(fl_adjusted >= 0 ? FORWARD : BACKWARD);
   }
-  delayMicroseconds(100);  // Allow shift register to settle
 }
 
 // ============================================================================

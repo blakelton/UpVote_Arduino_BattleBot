@@ -105,32 +105,71 @@ DriveMode mixing_get_drive_mode() {
 }
 
 void mixing_update() {
-  // FULL 4-MOTOR SEQUENTIAL TEST
-  // Tests each motor forward then backward in sequence
-  // Frame-based timing (100Hz loop = 10ms per frame)
+  // TEMPORARY: Bypass safety to test integer mixing
+  // TODO: Re-enable safety after confirming mixing works
+  // if (!g_state.input.link_ok || g_state.safety.arm_state != ARMED) {
+  //   actuators_set_motor(0, 0);
+  //   actuators_set_motor(1, 0);
+  //   actuators_set_motor(2, 0);
+  //   actuators_set_motor(3, 0);
+  //   return;
+  // }
 
-  static uint16_t frame_count = 0;
-  frame_count++;
+  // CRSF 11-bit: 172 (min) - 991/992 (center) - 1811 (max)
+  // Deadband: ~5% around center = ~41 counts each side (950-1033)
+  const int16_t CENTER = 992;
+  const int16_t DEADBAND = 41;  // ~5% of full range
 
-  // 8 phases x 2 seconds = 16 second total cycle
-  uint8_t phase = (frame_count / 200) % 8;  // 200 frames = 2 seconds per phase
+  // Read raw channels
+  int16_t ch0_raw = g_state.input.raw_channels[0];  // Roll
+  int16_t ch1_raw = g_state.input.raw_channels[1];  // Pitch
+  int16_t ch3_raw = g_state.input.raw_channels[3];  // Yaw
 
-  const int16_t TEST_SPEED = 200;
-  int16_t rl_cmd = 0, rr_cmd = 0, fl_cmd = 0, fr_cmd = 0;
+  // Apply deadband: if within deadband, output zero; otherwise rescale
+  int16_t x_pwm, y_pwm, r_pwm;
 
-  switch (phase) {
-    case 0: rl_cmd = TEST_SPEED; break;     // Rear-Left forward
-    case 1: rl_cmd = -TEST_SPEED; break;    // Rear-Left backward
-    case 2: rr_cmd = TEST_SPEED; break;     // Rear-Right forward
-    case 3: rr_cmd = -TEST_SPEED; break;    // Rear-Right backward
-    case 4: fl_cmd = TEST_SPEED; break;     // Front-Left forward
-    case 5: fl_cmd = -TEST_SPEED; break;    // Front-Left backward
-    case 6: fr_cmd = TEST_SPEED; break;     // Front-Right forward
-    case 7: fr_cmd = -TEST_SPEED; break;    // Front-Right backward
+  // Roll (X axis)
+  if (abs(ch0_raw - CENTER) < DEADBAND) {
+    x_pwm = 0;
+  } else if (ch0_raw > CENTER) {
+    x_pwm = map(ch0_raw, CENTER + DEADBAND, 1811, 0, 204);
+  } else {
+    x_pwm = map(ch0_raw, 172, CENTER - DEADBAND, -204, 0);
   }
 
-  actuators_set_motor(0, rl_cmd);  // M1 (Rear-Left)
-  actuators_set_motor(1, rr_cmd);  // M2 (Rear-Right)
-  actuators_set_motor(2, fl_cmd);  // M4 (Front-Left)
-  actuators_set_motor(3, fr_cmd);  // M3 (Front-Right)
+  // Pitch (Y axis)
+  if (abs(ch1_raw - CENTER) < DEADBAND) {
+    y_pwm = 0;
+  } else if (ch1_raw > CENTER) {
+    y_pwm = map(ch1_raw, CENTER + DEADBAND, 1811, 0, 204);
+  } else {
+    y_pwm = map(ch1_raw, 172, CENTER - DEADBAND, -204, 0);
+  }
+
+  // Yaw (R axis) - half scale for rotation
+  if (abs(ch3_raw - CENTER) < DEADBAND) {
+    r_pwm = 0;
+  } else if (ch3_raw > CENTER) {
+    r_pwm = map(ch3_raw, CENTER + DEADBAND, 1811, 0, 102);
+  } else {
+    r_pwm = map(ch3_raw, 172, CENTER - DEADBAND, -102, 0);
+  }
+
+  // Holonomic mixing with integer PWM values
+  int16_t fl_pwm = y_pwm + x_pwm + r_pwm;  // Front-Left
+  int16_t fr_pwm = y_pwm - x_pwm - r_pwm;  // Front-Right
+  int16_t rl_pwm = y_pwm - x_pwm + r_pwm;  // Rear-Left
+  int16_t rr_pwm = y_pwm + x_pwm - r_pwm;  // Rear-Right
+
+  // Clamp to motor limits
+  fl_pwm = constrain(fl_pwm, -255, 255);
+  fr_pwm = constrain(fr_pwm, -255, 255);
+  rl_pwm = constrain(rl_pwm, -255, 255);
+  rr_pwm = constrain(rr_pwm, -255, 255);
+
+  // Send to motors
+  actuators_set_motor(0, rl_pwm);  // M1: Rear-Left
+  actuators_set_motor(1, rr_pwm);  // M2: Rear-Right
+  actuators_set_motor(2, fl_pwm);  // M4: Front-Left
+  actuators_set_motor(3, fr_pwm);  // M3: Front-Right
 }
