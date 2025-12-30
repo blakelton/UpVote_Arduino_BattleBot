@@ -90,7 +90,70 @@ void input_update() {
 }
 
 void input_update_telemetry() {
-  // TODO: Implement telemetry using AlfredoCRSF library if needed
-  // Library supports sending telemetry packets via queuePacket() or writePacket()
-  // For now, telemetry is disabled to simplify integration
+  // Rate limit telemetry updates (1 Hz by default)
+  uint32_t now = millis();
+  if (now - g_state.battery.last_telemetry_ms < TELEMETRY_UPDATE_MS) {
+    return;
+  }
+  g_state.battery.last_telemetry_ms = now;
+
+#if CRSF_TELEMETRY_ENABLED
+  // ========================================================================
+  // STEP 1: Read battery voltage from ADC
+  // ========================================================================
+  // Voltage divider: R1=10k, R2=3.3k
+  // Vout = Vin * R2/(R1+R2), so Vin = Vout * (R1+R2)/R2
+  // ADC gives 0-1023 for 0-5V reference
+  int adc_raw = analogRead(PIN_BATTERY_MONITOR);
+  float v_adc = (float)adc_raw * BATTERY_ADC_VREF / (float)BATTERY_ADC_MAX;
+  float v_battery = v_adc * BATTERY_DIVIDER_RATIO;
+
+  // Store in state for other modules to access
+  g_state.battery.voltage = v_battery;
+
+  // ========================================================================
+  // STEP 2: Calculate battery percentage
+  // ========================================================================
+  // Linear mapping from min to max voltage
+  float pct = (v_battery - BATTERY_VOLTAGE_MIN) / (BATTERY_VOLTAGE_MAX - BATTERY_VOLTAGE_MIN) * 100.0f;
+  pct = constrain(pct, 0.0f, 100.0f);
+  g_state.battery.percentage = (uint8_t)pct;
+
+  // ========================================================================
+  // STEP 3: Build CRSF battery sensor telemetry packet
+  // ========================================================================
+  // CRSF battery sensor payload (8 bytes):
+  // - voltage: uint16_t, V * 10, big endian
+  // - current: uint16_t, A * 10, big endian
+  // - capacity: uint24_t (3 bytes), mAh, big endian
+  // - remaining: uint8_t, percentage
+
+  // Convert voltage to CRSF format (V * 10)
+  // Example: 11.5V -> 115 (0x0073)
+  // Big endian: high byte first -> [0x00][0x73]
+  uint16_t voltage_raw = (uint16_t)(v_battery * 10.0f);
+
+  // Build the payload manually - CRSF uses big endian (MSB first)
+  // Payload layout: [voltage_hi][voltage_lo][current_hi][current_lo][cap_hi][cap_mid][cap_lo][remaining]
+  uint8_t payload[8];
+  payload[0] = (voltage_raw >> 8) & 0xFF;   // voltage high byte
+  payload[1] = voltage_raw & 0xFF;           // voltage low byte
+  payload[2] = 0;                            // current high byte (not measured)
+  payload[3] = 0;                            // current low byte
+  payload[4] = 0;                            // capacity high byte
+  payload[5] = 0;                            // capacity mid byte
+  payload[6] = 0;                            // capacity low byte
+  payload[7] = g_state.battery.percentage;   // remaining percentage
+
+  // ========================================================================
+  // STEP 4: Send telemetry packet via CRSF
+  // ========================================================================
+  // Use queuePacket to avoid blocking - it buffers the packet for transmission
+  crsf.queuePacket(
+    CRSF_ADDRESS_FLIGHT_CONTROLLER,  // Source address (we are the FC)
+    CRSF_FRAMETYPE_BATTERY_SENSOR,   // Frame type 0x08
+    payload,                          // Payload data
+    sizeof(payload)                   // Payload length (8 bytes)
+  );
+#endif // CRSF_TELEMETRY_ENABLED
 }

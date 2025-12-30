@@ -24,7 +24,8 @@ RuntimeState g_state = {
     .kill_switch = false,
     .selfright_switch = false,
     .last_packet_ms = 0,
-    .link_ok = false
+    .link_ok = false,
+    .raw_channels = {992, 992, 992, 992, 992, 992, 992, 992, 992, 992, 992, 992, 992, 992, 992, 992}  // All at center
   },
 
   // Safety state
@@ -54,5 +55,12 @@ RuntimeState g_state = {
     .led_state = false,
     .error_blink_count = 0,
     .error_blink_phase = 0
+  },
+
+  // Battery telemetry state
+  .battery = {
+    .voltage = 0.0f,
+    .percentage = 0,
+    .last_telemetry_ms = 0
   }
 };

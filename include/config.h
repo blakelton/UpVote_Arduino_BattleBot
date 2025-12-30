@@ -162,10 +162,23 @@
 #define CRSF_TELEMETRY_ENABLED  1     // Set to 0 to disable telemetry
 #define TELEMETRY_UPDATE_MS     1000  // Send telemetry every 1 second (1 Hz)
 
-// Battery voltage monitoring (optional)
-// Uncomment and adjust if you add a voltage divider to A0
-// #define BATTERY_MONITOR_PIN     A0
-// #define BATTERY_SCALE_FACTOR    0.0049  // Calibration factor (ADC to volts)
+// Battery voltage monitoring
+// Voltage divider: R1=10k, R2=3.3k on A0 for 3S LiPo (12.6V max)
+// Vout = Vin * R2/(R1+R2) = Vin * 3.3/13.3 = Vin * 0.248
+// ADC: 0-1023 for 0-5V, so Vin = (ADC * 5.0 / 1023) * (13.3/3.3)
+#define PIN_BATTERY_MONITOR     A0
+#define BATTERY_R1_KOHM         10.0f   // Upper resistor (10kOhm)
+#define BATTERY_R2_KOHM         3.3f    // Lower resistor (3.3kOhm)
+// Calibrated ratio: theoretical ~4.03, adjusted for resistor tolerance
+// Calibration: measured 11.4V when actual was 11.51V -> multiply by 1.0096
+#define BATTERY_DIVIDER_RATIO   4.069f
+#define BATTERY_ADC_VREF        5.0f    // Arduino ADC reference voltage
+#define BATTERY_ADC_MAX         1023    // 10-bit ADC maximum value
+
+// Battery thresholds for 3S LiPo
+#define BATTERY_VOLTAGE_MAX     12.6f   // Fully charged (4.2V * 3 cells)
+#define BATTERY_VOLTAGE_MIN     9.0f    // Minimum safe voltage (3.0V * 3 cells)
+#define BATTERY_VOLTAGE_NOMINAL 11.1f   // Nominal voltage (3.7V * 3 cells)
 
 // ============================================================================
 // HOLONOMIC MIXING CONSTANTS (Phase 4)

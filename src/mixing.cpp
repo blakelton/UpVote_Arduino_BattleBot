@@ -128,31 +128,31 @@ void mixing_update() {
   // Apply deadband: if within deadband, output zero; otherwise rescale
   int16_t x_pwm, y_pwm, r_pwm;
 
-  // Roll (X axis)
+  // Roll (X axis) - full scale ±255 for max speed
   if (abs(ch0_raw - CENTER) < DEADBAND) {
     x_pwm = 0;
   } else if (ch0_raw > CENTER) {
-    x_pwm = map(ch0_raw, CENTER + DEADBAND, 1811, 0, 204);
+    x_pwm = map(ch0_raw, CENTER + DEADBAND, 1811, 0, 255);
   } else {
-    x_pwm = map(ch0_raw, 172, CENTER - DEADBAND, -204, 0);
+    x_pwm = map(ch0_raw, 172, CENTER - DEADBAND, -255, 0);
   }
 
-  // Pitch (Y axis)
+  // Pitch (Y axis) - full scale ±255 for max speed
   if (abs(ch1_raw - CENTER) < DEADBAND) {
     y_pwm = 0;
   } else if (ch1_raw > CENTER) {
-    y_pwm = map(ch1_raw, CENTER + DEADBAND, 1811, 0, 204);
+    y_pwm = map(ch1_raw, CENTER + DEADBAND, 1811, 0, 255);
   } else {
-    y_pwm = map(ch1_raw, 172, CENTER - DEADBAND, -204, 0);
+    y_pwm = map(ch1_raw, 172, CENTER - DEADBAND, -255, 0);
   }
 
-  // Yaw (R axis) - half scale for rotation
+  // Yaw (R axis) - full scale for rotation (±255)
   if (abs(ch3_raw - CENTER) < DEADBAND) {
     r_pwm = 0;
   } else if (ch3_raw > CENTER) {
-    r_pwm = map(ch3_raw, CENTER + DEADBAND, 1811, 0, 102);
+    r_pwm = map(ch3_raw, CENTER + DEADBAND, 1811, 0, 255);
   } else {
-    r_pwm = map(ch3_raw, 172, CENTER - DEADBAND, -102, 0);
+    r_pwm = map(ch3_raw, 172, CENTER - DEADBAND, -255, 0);
   }
 
   // Holonomic mixing with integer PWM values

@@ -50,6 +50,9 @@ struct RuntimeState {
 
     uint32_t last_packet_ms; // Time of last valid CRSF packet
     bool link_ok;            // Link health status
+
+    // DEBUG: Raw CRSF channel values for diagnostics
+    uint16_t raw_channels[16];  // Raw 11-bit CRSF values (172-1811)
   } input;
 
   // --- Safety State (Phase 1.4+) ---
@@ -89,6 +92,13 @@ struct RuntimeState {
     uint8_t error_blink_count;    // Error code blink counter
     uint8_t error_blink_phase;    // Error code state machine phase
   } diagnostics;
+
+  // --- Battery Telemetry State ---
+  struct {
+    float voltage;                // Battery voltage in volts
+    uint8_t percentage;           // Battery remaining percentage (0-100)
+    uint32_t last_telemetry_ms;   // Last telemetry send time
+  } battery;
 };
 
 // ============================================================================
