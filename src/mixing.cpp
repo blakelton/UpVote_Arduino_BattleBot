@@ -128,13 +128,13 @@ void mixing_update() {
   // Apply deadband: if within deadband, output zero; otherwise rescale
   int16_t x_pwm, y_pwm, r_pwm;
 
-  // Roll (X axis) - full scale ±255 for max speed
+  // Roll (X axis) - full scale ±255 for max speed (inverted for correct strafe direction)
   if (abs(ch0_raw - CENTER) < DEADBAND) {
     x_pwm = 0;
   } else if (ch0_raw > CENTER) {
-    x_pwm = map(ch0_raw, CENTER + DEADBAND, 1811, 0, 255);
+    x_pwm = map(ch0_raw, CENTER + DEADBAND, 1811, 0, -255);  // Inverted
   } else {
-    x_pwm = map(ch0_raw, 172, CENTER - DEADBAND, -255, 0);
+    x_pwm = map(ch0_raw, 172, CENTER - DEADBAND, 255, 0);    // Inverted
   }
 
   // Pitch (Y axis) - full scale ±255 for max speed
