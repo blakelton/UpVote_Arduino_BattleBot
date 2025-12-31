@@ -97,9 +97,13 @@ void loop() {
   // Only update mixing if link is OK and kill switch is not active
   if (g_state.input.link_ok && !g_state.input.kill_switch) {
     mixing_update();
+  } else {
+    // Kill switch active or link lost - stop all motors immediately
+    actuators_set_motor(0, 0);
+    actuators_set_motor(1, 0);
+    actuators_set_motor(2, 0);
+    actuators_set_motor(3, 0);
   }
-  // Note: If failsafe or kill switch active, motors stay at last commanded values
-  // actuators_update() will still write outputs (likely zero from last failsafe)
 
   // Phase 5: Weapon control (arming state machine + output scaling)
   weapon_update();

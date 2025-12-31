@@ -4,6 +4,7 @@
 #include "config.h"
 #include "state.h"
 #include "safety.h"
+#include "mixing.h"
 
 // ============================================================================
 // ALFREDO CRSF LIBRARY INSTANCE
@@ -51,10 +52,10 @@ void input_update() {
   // Expected range: ~988µs (min) to ~2012µs (max), ~1500µs (center)
   uint16_t ch1_us = crsf.getChannel(1);   // Roll (right stick X)
   uint16_t ch2_us = crsf.getChannel(2);   // Pitch (right stick Y)
+  uint16_t ch3_us = crsf.getChannel(3);   // Kill switch (SF) - moved to CH3
   uint16_t ch4_us = crsf.getChannel(4);   // Yaw (left stick X)
   uint16_t ch5_us = crsf.getChannel(5);   // Weapon slider
   uint16_t ch6_us = crsf.getChannel(6);   // Arm switch (SA)
-  uint16_t ch9_us = crsf.getChannel(9);   // Kill switch (SF)
   uint16_t ch7_us = crsf.getChannel(7);   // Self-right switch (SH)
   uint16_t ch8_us = crsf.getChannel(8);   // Drive mode switch (SB)
 
@@ -67,22 +68,28 @@ void input_update() {
   g_state.input.raw_channels[5] = map(ch6_us, 988, 2012, 172, 1811);  // CH6: Arm
   g_state.input.raw_channels[6] = map(ch7_us, 988, 2012, 172, 1811);  // CH7: Self-right
   g_state.input.raw_channels[7] = map(ch8_us, 988, 2012, 172, 1811);  // CH8: Drive mode
-  g_state.input.raw_channels[8] = map(ch9_us, 988, 2012, 172, 1811);  // CH9: Kill
+  g_state.input.raw_channels[2] = map(ch3_us, 988, 2012, 172, 1811);  // CH3: Kill (SF)
 
   // Decode switches (3-position)
   uint8_t arm_switch_pos = decode_3pos_switch_us(ch6_us);       // CH6: Arm Switch (SA)
-  uint8_t kill_switch_pos = decode_3pos_switch_us(ch9_us);      // CH9: Kill Switch (SF)
   uint8_t selfright_switch_pos = decode_3pos_switch_us(ch7_us); // CH7: Self-Right (SH)
+  uint8_t drive_mode_pos = decode_3pos_switch_us(ch8_us);       // CH8: Drive Mode (SB)
 
   // Map switch positions to boolean states
   // Arm switch: position 2 (high) = armed
   g_state.input.arm_switch = (arm_switch_pos == 2);
 
-  // Kill switch: position 2 (high) = kill active
-  g_state.input.kill_switch = (kill_switch_pos == 2);
+  // Kill switch: SF is 2-pos switch on CH3
+  // When SF is UP (forward), ch3_us ~2012 -> motors run
+  // When SF is DOWN (back), ch3_us ~988 -> motors killed
+  // Use 1500µs as threshold (midpoint)
+  g_state.input.kill_switch = (ch3_us < 1500);
 
   // Self-right switch: position 2 (high) = trigger
   g_state.input.selfright_switch = (selfright_switch_pos == 2);
+
+  // Drive mode: 0=Beginner, 1=Normal, 2=Aggressive
+  mixing_set_drive_mode((DriveMode)drive_mode_pos);
 
   // Weapon throttle: map from microseconds to 0.0-1.0 range
   // Weapon uses unipolar control (0-100%), not bipolar (-100 to +100%)

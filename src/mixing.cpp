@@ -105,67 +105,69 @@ DriveMode mixing_get_drive_mode() {
 }
 
 void mixing_update() {
-  // TEMPORARY: Bypass safety to test integer mixing
-  // TODO: Re-enable safety after confirming mixing works
-  // if (!g_state.input.link_ok || g_state.safety.arm_state != ARMED) {
-  //   actuators_set_motor(0, 0);
-  //   actuators_set_motor(1, 0);
-  //   actuators_set_motor(2, 0);
-  //   actuators_set_motor(3, 0);
-  //   return;
-  // }
-
   // CRSF 11-bit: 172 (min) - 991/992 (center) - 1811 (max)
   // Deadband: ~5% around center = ~41 counts each side (950-1033)
   const int16_t CENTER = 992;
   const int16_t DEADBAND = 41;  // ~5% of full range
+
+  // Get max duty from current drive mode
+  int16_t max_duty = g_mode_params.max_duty;
+  float expo = g_mode_params.expo;
 
   // Read raw channels
   int16_t ch0_raw = g_state.input.raw_channels[0];  // Roll
   int16_t ch1_raw = g_state.input.raw_channels[1];  // Pitch
   int16_t ch3_raw = g_state.input.raw_channels[3];  // Yaw
 
-  // Apply deadband: if within deadband, output zero; otherwise rescale
-  int16_t x_pwm, y_pwm, r_pwm;
+  // Apply deadband and get normalized input [-1.0, +1.0]
+  float x_norm, y_norm, r_norm;
 
-  // Roll (X axis) - full scale ±255 for max speed (inverted for correct strafe direction)
+  // Roll (X axis) - inverted for correct strafe direction
   if (abs(ch0_raw - CENTER) < DEADBAND) {
-    x_pwm = 0;
+    x_norm = 0.0f;
   } else if (ch0_raw > CENTER) {
-    x_pwm = map(ch0_raw, CENTER + DEADBAND, 1811, 0, -255);  // Inverted
+    x_norm = -(float)(ch0_raw - CENTER - DEADBAND) / (float)(1811 - CENTER - DEADBAND);
   } else {
-    x_pwm = map(ch0_raw, 172, CENTER - DEADBAND, 255, 0);    // Inverted
+    x_norm = -(float)(ch0_raw - CENTER + DEADBAND) / (float)(CENTER - DEADBAND - 172);
   }
 
-  // Pitch (Y axis) - full scale ±255 for max speed
+  // Pitch (Y axis)
   if (abs(ch1_raw - CENTER) < DEADBAND) {
-    y_pwm = 0;
+    y_norm = 0.0f;
   } else if (ch1_raw > CENTER) {
-    y_pwm = map(ch1_raw, CENTER + DEADBAND, 1811, 0, 255);
+    y_norm = (float)(ch1_raw - CENTER - DEADBAND) / (float)(1811 - CENTER - DEADBAND);
   } else {
-    y_pwm = map(ch1_raw, 172, CENTER - DEADBAND, -255, 0);
+    y_norm = (float)(ch1_raw - CENTER + DEADBAND) / (float)(CENTER - DEADBAND - 172);
   }
 
-  // Yaw (R axis) - full scale for rotation (±255)
+  // Yaw (R axis)
   if (abs(ch3_raw - CENTER) < DEADBAND) {
-    r_pwm = 0;
+    r_norm = 0.0f;
   } else if (ch3_raw > CENTER) {
-    r_pwm = map(ch3_raw, CENTER + DEADBAND, 1811, 0, 255);
+    r_norm = (float)(ch3_raw - CENTER - DEADBAND) / (float)(1811 - CENTER - DEADBAND);
   } else {
-    r_pwm = map(ch3_raw, 172, CENTER - DEADBAND, -255, 0);
+    r_norm = (float)(ch3_raw - CENTER + DEADBAND) / (float)(CENTER - DEADBAND - 172);
   }
 
-  // Holonomic mixing with integer PWM values
-  int16_t fl_pwm = y_pwm + x_pwm + r_pwm;  // Front-Left
-  int16_t fr_pwm = y_pwm - x_pwm - r_pwm;  // Front-Right
-  int16_t rl_pwm = y_pwm - x_pwm + r_pwm;  // Rear-Left
-  int16_t rr_pwm = y_pwm + x_pwm - r_pwm;  // Rear-Right
+  // Apply exponential curve for smoother control
+  x_norm = apply_expo(x_norm, expo);
+  y_norm = apply_expo(y_norm, expo);
+  r_norm = apply_expo(r_norm, expo);
 
-  // Clamp to motor limits
-  fl_pwm = constrain(fl_pwm, -255, 255);
-  fr_pwm = constrain(fr_pwm, -255, 255);
-  rl_pwm = constrain(rl_pwm, -255, 255);
-  rr_pwm = constrain(rr_pwm, -255, 255);
+  // Holonomic mixing with normalized values
+  float fl_norm = y_norm + x_norm + r_norm;  // Front-Left
+  float fr_norm = y_norm - x_norm - r_norm;  // Front-Right
+  float rl_norm = y_norm - x_norm + r_norm;  // Rear-Left
+  float rr_norm = y_norm + x_norm - r_norm;  // Rear-Right
+
+  // Normalize to prevent saturation (keep ratios, limit max to 1.0)
+  normalize_outputs(&fl_norm, &fr_norm, &rl_norm, &rr_norm);
+
+  // Scale to PWM range based on drive mode max_duty
+  int16_t fl_pwm = (int16_t)(fl_norm * max_duty);
+  int16_t fr_pwm = (int16_t)(fr_norm * max_duty);
+  int16_t rl_pwm = (int16_t)(rl_norm * max_duty);
+  int16_t rr_pwm = (int16_t)(rr_norm * max_duty);
 
   // Send to motors
   actuators_set_motor(0, rl_pwm);  // M1: Rear-Left
