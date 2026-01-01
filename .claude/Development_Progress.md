@@ -999,3 +999,66 @@ Replaced Serial logging with dual monitoring strategy:
 
 **Next Review**: Recommended after H1 refactoring is complete.
 
+
+### [2025-12-29 19:31] Plan Status: `bug_afmotor_hardware_mismatch`
+**Transition**: N/A → ready
+**Reason**: Root cause analysis completed for motor control issues
+**Files Affected**: .claude/plans/bug_afmotor_hardware_mismatch.ready.md
+**Notes**: Identified architectural mismatch - firmware uses manual shift register control but L293D V1 Motor Shield requires AFMotor library. Analysis includes 95% confidence root cause with detailed evidence and fix approach.
+
+### [2025-12-29 19:31] Plan Status: `feature_afmotor_integration`
+**Transition**: N/A → ready
+**Reason**: Implementation plan created for AFMotor library integration
+**Files Affected**: .claude/plans/feature_afmotor_integration.ready.md
+**Notes**: 6-phase plan created: (1) Library setup, (2) Motor objects, (3) Update function, (4) Hardware testing, (5) Cleanup, (6) Holonomic mixing. Full SOLID analysis and risk assessment included.
+
+### [2025-12-29] Plan Status: `bug_m2_motor_sequential_test_failure`
+**Transition**: N/A → ready
+**Reason**: Comprehensive root cause analysis for M2 motor failure in sequential test
+**Files Affected**: .claude/plans/bug_m2_motor_sequential_test_failure.ready.md
+**Notes**: Deep investigation following root-cause-analyzer protocol. **CRITICAL FINDING**: All motors using MOTOR12_64KHZ (~62.5 kHz) when TT motors optimal at 2-4 kHz (16x too high!). M2 most sensitive to excessive frequency - works in isolation but fails in sequential test. Root cause confidence: 90%. Primary fix: Change M1/M2 to MOTOR12_2KHZ (~2 kHz), M3/M4 to MOTOR34_8KHZ (~4 kHz). Expected benefits: M2 fix + improved torque/efficiency for all motors. Includes detailed execution traces, frequency research, validation tests, and prevention recommendations.
+
+---
+
+### [2026-01-01 10:30] Unplanned: `drive_modes_kill_switch_implementation`
+**Type**: Feature + Bug Fix
+**Files Affected**: src/input.cpp, src/main.cpp, src/mixing.cpp
+**Reason**: User testing revealed drive modes and kill switch were not functional
+
+**Issues Fixed**:
+1. **Drive Mode (SB/CH8)** - Was not being processed
+   - Added `mixing_set_drive_mode()` call in input_update()
+   - Now correctly switches between Beginner (50%)/Normal (80%)/Aggressive (100%)
+   - Applies expo curves per mode (0.3/0.2/0.1)
+
+2. **Kill Switch (SF)** - Wrong channel and broken logic
+   - Moved from CH9 to CH3 (CH9 not used in model setup)
+   - Changed from position-based to threshold-based (ch3_us < 1500)
+   - Motors now stop immediately when kill switch active
+
+3. **Motors not stopping on kill** - Only skipping mixing_update() wasn't enough
+   - Added explicit motor stop commands (all 4 motors to 0) in else branch
+   - Motors now properly stop on kill switch OR link loss
+
+**Implementation Details**:
+- `src/input.cpp`: Added drive mode decoding, moved kill switch to CH3, threshold-based detection
+- `src/main.cpp`: Added motor stop commands in kill switch else branch
+- `src/mixing.cpp`: Now uses normalized float mixing with expo and max_duty from drive mode
+
+**Channel Mapping (Updated)**:
+- CH1: Roll (right stick X)
+- CH2: Pitch (right stick Y)
+- CH3: Kill switch (SF) - **NEW**
+- CH4: Yaw (left stick X)
+- CH5: Weapon slider
+- CH6: Arm switch (SA)
+- CH7: Self-right (SH)
+- CH8: Drive mode (SB)
+
+**Testing Results**:
+- ✅ Drive modes working (noticeable speed difference)
+- ✅ Kill switch functional (SF down = stop, SF up = run)
+- ✅ Motors stop immediately on kill
+
+**Git Status**: Committed and pushed
+- Commit 6b1eba4: Implement drive modes and kill switch functionality
